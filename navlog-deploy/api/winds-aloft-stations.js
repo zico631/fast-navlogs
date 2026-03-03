@@ -3,16 +3,12 @@ export default async function handler(req, res) {
     const region = String(req.query.region || "bos").toLowerCase();
     const level = String(req.query.level || "low").toLowerCase();
 
-    // AviationWeather winds aloft "data server" endpoints commonly return JSON.
-    // If your old setup used a different upstream, we’ll adjust later.
+    // Winds Aloft product (text) — correct upstream is windtemp
     const upstream =
-      `https://aviationweather.gov/api/data/winds?region=${encodeURIComponent(region)}&level=${encodeURIComponent(level)}&format=json`;
+      `https://aviationweather.gov/api/data/windtemp?region=${encodeURIComponent(region)}&level=${encodeURIComponent(level)}&fcst=06&layout=off`;
 
     const r = await fetch(upstream, {
-      headers: {
-        "User-Agent": "fast-navlog",
-        "Accept": "application/json,text/plain,*/*",
-      },
+      headers: { "Accept": "text/plain,*/*" },
     });
 
     if (!r.ok) {
@@ -20,16 +16,17 @@ export default async function handler(req, res) {
       return;
     }
 
-    const data = await r.json();
+    const text = await r.text();
 
-    // ✅ We normalize to: { stations: ["JFK","ISP",...] }
-    // Many APIs return items with station fields; we extract and dedupe.
-    const stations = Array.from(new Set(
-      (Array.isArray(data) ? data : (data?.data || data?.stations || []))
-        .map(x => (typeof x === "string" ? x : x?.station))
-        .filter(Boolean)
-        .map(s => String(s).toUpperCase())
-    )).sort();
+    // Parse station codes from the FD text product lines:
+    // Lines typically start like: "JFK 9900 2412-05 ..."
+    const stationsSet = new Set();
+    for (const line of text.split("\n")) {
+      const m = line.match(/^\s*([A-Z]{3})\s+/);
+      if (m) stationsSet.add(m[1]);
+    }
+
+    const stations = Array.from(stationsSet).sort();
 
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.status(200).json({ stations });
