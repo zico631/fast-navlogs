@@ -808,9 +808,9 @@
      SCRIPT (UNCHANGED)
 ========================= -->
 <script type="module">
-  import { aircraftDb } from "./js/perf/aircraftDb.js";
-  import { buildWindProfile, windAtAltFt, computeClimbSegmentPOH, lookupCruise, computeTodProfile } from "./js/perf/perfEngine.js";
-  import { round } from "./js/perf/perfUtils.js";
+  import { aircraftdb } from "./js/perf/aircraftdb.js";
+  import { buildWindProfile, windAtAltFt, computeClimbSegmentPOH, lookupCruise, computeTodProfile } from "./js/perf/perfengine.js";
+  import { round } from "./js/perf/perfutils.js";
   import { loadPlan, savePlan } from "./js/plan/store.js";
   import { parseVarToken } from "./js/perf/navmath.js";
   console.log("✅ inputs.html module loaded");
@@ -2184,4 +2184,5 @@ updateCruiseWindPill();
 </script>
 
 </body>
+
 </html>
