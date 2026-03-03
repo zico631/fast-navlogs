@@ -24,10 +24,9 @@ export function defaultPlan() {
       flapSetting: "UP",
       cruiseKias: 100
     },
-    legs: [
-      { from: "KAAA", to: "CP1", tcDeg: 90, distNm: 12.5 },
-      { from: "CP1", to: "KBBB", tcDeg: 120, distNm: 25.0 }
-    ]
+
+    // ✅ CHANGE: start with NO default legs
+    legs: []
   };
 }
 
@@ -71,3 +70,4 @@ export function savePlan(plan) {
 
 export const loadplan = loadPlan;
 export const saveplan = savePlan;
+
