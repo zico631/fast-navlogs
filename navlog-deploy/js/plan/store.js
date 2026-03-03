@@ -1,11 +1,12 @@
 // store.js
+
 export const STORAGE_KEY = "navlogProto_v1";
 
 export function defaultPlan() {
   return {
     aircraftId: "C172S",
     env: {
-      // NEW: Departure & climb inputs (required)
+      // Departure & climb inputs
       depIcao: "KFRG",
       fieldElevFt: 20,
       surfaceWindFromDeg: 240,
@@ -14,7 +15,7 @@ export function defaultPlan() {
       climbKias: 74,
       cruiseAltFt: 5500,
 
-      // EXISTING: Cruise performance inputs (keep for now so nothing breaks)
+      // Cruise performance inputs
       pressureAltFt: 4000,
       oatC: 15,
       rpm: 2500,
@@ -37,12 +38,11 @@ export function loadPlan() {
   try {
     const parsed = JSON.parse(raw);
 
-    // Ensure top-level structure exists
     if (!parsed.env) parsed.env = {};
     if (!parsed.legs) parsed.legs = [];
     if (!parsed.aircraftId) parsed.aircraftId = "C172S";
 
-    // Fill in any missing env fields with defaults (so upgrades don't break old saved plans)
+    // Backfill missing env keys
     const defEnv = defaultPlan().env;
     for (const k of Object.keys(defEnv)) {
       if (parsed.env[k] === undefined || parsed.env[k] === null) {
@@ -51,11 +51,23 @@ export function loadPlan() {
     }
 
     return parsed;
-  } catch {
+  } catch (err) {
+    console.warn("loadPlan failed, resetting to default:", err);
     return defaultPlan();
   }
 }
 
 export function savePlan(plan) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(plan));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(plan));
+  } catch (err) {
+    console.warn("savePlan failed:", err);
+  }
 }
+
+/* ------------------------------------------------------------------
+   LOWERCASE ALIASES (so your current inputs.html keeps working)
+-------------------------------------------------------------------*/
+
+export const loadplan = loadPlan;
+export const saveplan = savePlan;
