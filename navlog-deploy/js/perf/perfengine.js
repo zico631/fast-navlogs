@@ -1,4 +1,7 @@
 // perfengine.js
+// Performance + wind profile + TOC/TOD helpers
+// ✅ Exports are LOWERCASE to match your current inputs.html/navlog.html imports.
+
 import {
   clamp,
   lerp,
@@ -15,142 +18,164 @@ import {
 function tempKeyFromDelta(deltaC) {
   if (deltaC <= -20) return { aKey: "m20", bKey: "m20", t: 0 };
   if (deltaC >=  20) return { aKey: "p20", bKey: "p20", t: 0 };
-  if (deltaC < 0) {
-    return { aKey: "m20", bKey: "std", t: (deltaC + 20) / 20 };
-  }
+  if (deltaC < 0)    return { aKey: "m20", bKey: "std", t: (deltaC + 20) / 20 };
   return { aKey: "std", bKey: "p20", t: deltaC / 20 };
 }
 
 // ------------------------------------------------------------
-// CRUISE (export name matches inputs.html: lookupcruise)
+// CRUISE (inputs.html imports: lookupcruise)
 // ------------------------------------------------------------
 
-// Cruise performance lookup with interpolation
 export function lookupcruise(aircraft, pressureAltFt, rpm, oatC) {
-  const cruise = aircraft.cruise;
+  const cruise = aircraft?.cruise;
+  if (!cruise) return { ktas: NaN, gph: NaN, isaC: NaN, deltaFromStdC: NaN };
 
-  const altKeys = Object.keys(cruise).map(Number).sort((a, b) => a - b);
-  const alt = clamp(pressureAltFt, altKeys[0], altKeys[altKeys.length - 1]);
+  const altKeys = Object.keys(cruise).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+  if (altKeys.length === 0) return { ktas: NaN, gph: NaN, isaC: NaN, deltaFromStdC: NaN };
+
+  const alt = clamp(Number(pressureAltFt), altKeys[0], altKeys[altKeys.length - 1]);
 
   const isa = isaTempC(alt);
-  const delta = clamp(oatC - isa, -20, 20);
+  const delta = clamp(Number(oatC) - isa, -20, 20);
   const { aKey, bKey, t } = tempKeyFromDelta(delta);
 
-  const rpmKeysForAlt = a => Object.keys(cruise[a]).map(Number).sort((x, y) => x - y);
+  const rpmKeysForAlt = (a) =>
+    Object.keys(cruise[a] || {}).map(Number).filter(Number.isFinite).sort((x, y) => x - y);
+
   const allRpmKeys = [...new Set(altKeys.flatMap(rpmKeysForAlt))].sort((a, b) => a - b);
-  const rrpm = clamp(rpm, allRpmKeys[0], allRpmKeys[allRpmKeys.length - 1]);
+  if (allRpmKeys.length === 0) return { ktas: NaN, gph: NaN, isaC: isa, deltaFromStdC: delta };
+
+  const rrpm = clamp(Number(rpm), allRpmKeys[0], allRpmKeys[allRpmKeys.length - 1]);
 
   function valueAt(altKey, rpmKey) {
-    const cell = cruise[altKey][rpmKey];
-    const A = cell[aKey];
-    const B = cell[bKey];
+    const cell = cruise?.[altKey]?.[rpmKey];
+    const A = cell?.[aKey];
+    const B = cell?.[bKey];
+
+    // Defensive: if the grid cell is missing, return NaNs (so UI can show —)
+    if (!A || !B) return { ktas: NaN, gph: NaN };
+
     return {
-      ktas: lerp(t, 0, 1, A.ktas, B.ktas),
-      gph:  lerp(t, 0, 1, A.gph,  B.gph)
+      ktas: lerp(t, 0, 1, Number(A.ktas), Number(B.ktas)),
+      gph:  lerp(t, 0, 1, Number(A.gph),  Number(B.gph))
     };
   }
 
-  const ktas = interp2({
-    xKeys: allRpmKeys,
-    yKeys: altKeys,
-    getValue: (xRpm, yAlt) => {
-      const locals = rpmKeysForAlt(yAlt);
-      const localRpm = clamp(xRpm, locals[0], locals[locals.length - 1]);
-      return valueAt(yAlt, localRpm).ktas;
-    }
-  }, rrpm, alt);
+  const ktas = interp2(
+    {
+      xKeys: allRpmKeys,
+      yKeys: altKeys,
+      getValue: (xRpm, yAlt) => {
+        const locals = rpmKeysForAlt(yAlt);
+        const localRpm = clamp(xRpm, locals[0], locals[locals.length - 1]);
+        return valueAt(yAlt, localRpm).ktas;
+      }
+    },
+    rrpm,
+    alt
+  );
 
-  const gph = interp2({
-    xKeys: allRpmKeys,
-    yKeys: altKeys,
-    getValue: (xRpm, yAlt) => {
-      const locals = rpmKeysForAlt(yAlt);
-      const localRpm = clamp(xRpm, locals[0], locals[locals.length - 1]);
-      return valueAt(yAlt, localRpm).gph;
-    }
-  }, rrpm, alt);
+  const gph = interp2(
+    {
+      xKeys: allRpmKeys,
+      yKeys: altKeys,
+      getValue: (xRpm, yAlt) => {
+        const locals = rpmKeysForAlt(yAlt);
+        const localRpm = clamp(xRpm, locals[0], locals[locals.length - 1]);
+        return valueAt(yAlt, localRpm).gph;
+      }
+    },
+    rrpm,
+    alt
+  );
 
-  return {
-    ktas,
-    gph,
-    isaC: isa,
-    deltaFromStdC: delta
-  };
-}
-
-// Wind correction and groundspeed (training-style)
-export function computewinds({ tcDeg, tasKt, windFromDeg, windKt }) {
-  const delta = deg2rad(norm360(windFromDeg - tcDeg));
-  const crosswind = windKt * Math.sin(delta);
-  const headwind = windKt * Math.cos(delta);
-
-  const ratio = Math.max(-1, Math.min(1, crosswind / Math.max(1, tasKt)));
-  const wcaDeg = rad2deg(Math.asin(ratio));
-  const thDeg = norm360(tcDeg + wcaDeg);
-
-  const gsKt = Math.max(1, tasKt - headwind);
-
-  return {
-    wcaDeg,
-    thDeg,
-    gsKt,
-    headwindKt: headwind,
-    crosswindKt: crosswind
-  };
-}
-
-// KIAS → KCAS via POH calibration table
-export function kiastokcas(aircraft, flapSetting, kias) {
-  const table = aircraft.airspeedCal?.[flapSetting];
-  if (!table) return kias;
-  return interp1(table.map(p => ({ x: p.kias, y: p.kcas })), kias);
+  return { ktas, gph, isaC: isa, deltaFromStdC: delta };
 }
 
 // ------------------------------------------------------------
-// WIND PROFILE (export names match inputs.html)
+// WINDS (inputs.html/navlog.html may import: computewinds)
+// ------------------------------------------------------------
+
+export function computewinds({ tcDeg, tasKt, windFromDeg, windKt }) {
+  const tc = Number(tcDeg);
+  const tas = Number(tasKt);
+  const wf = Number(windFromDeg);
+  const wk = Number(windKt);
+
+  if (![tc, tas, wf, wk].every(Number.isFinite) || tas <= 0) {
+    return { wcaDeg: 0, thDeg: Number.isFinite(tc) ? norm360(tc) : NaN, gsKt: NaN, headwindKt: NaN, crosswindKt: NaN };
+  }
+
+  // windFrom - tc, normalized (0..360), then to radians
+  const delta = deg2rad(norm360(wf - tc));
+  const crosswind = wk * Math.sin(delta);
+  const headwind  = wk * Math.cos(delta);
+
+  const ratio = Math.max(-1, Math.min(1, crosswind / Math.max(1, tas)));
+  const wcaDeg = rad2deg(Math.asin(ratio));
+  const thDeg  = norm360(tc + wcaDeg);
+
+  // NOTE: sign convention matches your earlier code: GS = TAS - headwind component
+  const gsKt = Math.max(1, tas - headwind);
+
+  return { wcaDeg, thDeg, gsKt, headwindKt: headwind, crosswindKt: crosswind };
+}
+
+// ------------------------------------------------------------
+// KIAS → KCAS (inputs.html may import: kiastokcas)
+// ------------------------------------------------------------
+
+export function kiastokcas(aircraft, flapSetting, kias) {
+  const table = aircraft?.airspeedCal?.[flapSetting];
+  if (!table || table.length < 2) return Number(kias);
+  return interp1(table.map(p => ({ x: Number(p.kias), y: Number(p.kcas) })), Number(kias));
+}
+
+// ------------------------------------------------------------
+// WIND PROFILE (inputs.html imports: buildwindprofile, windataltft)
 // ------------------------------------------------------------
 
 function windToUV(dirDeg, kt) {
-  // Wind is "from" direction. Convert to a vector pointing TO.
-  // Meteorology convention: u = west->east, v = south->north
-  // TO direction = dir + 180
-  const toDeg = norm360((dirDeg ?? 0) + 180);
+  // Wind is "from". Convert to vector pointing "to".
+  const toDeg = norm360((Number(dirDeg) || 0) + 180);
   const r = deg2rad(toDeg);
-  const u = kt * Math.sin(r);
-  const v = kt * Math.cos(r);
+  const u = Number(kt) * Math.sin(r); // west->east
+  const v = Number(kt) * Math.cos(r); // south->north
   return { u, v };
 }
 
 function uvToWind(u, v) {
-  const kt = Math.sqrt(u*u + v*v);
+  const kt = Math.sqrt(u * u + v * v);
   if (kt < 0.5) return { dir: null, kt: 0 };
+
   const toRad = Math.atan2(u, v);
   const toDeg = norm360(rad2deg(toRad));
   const fromDeg = norm360(toDeg + 180);
+
   return { dir: fromDeg, kt };
 }
 
-// inputs.html imports buildwindprofile()
 export function buildwindprofile({ surfaceDir, surfaceKt, windsAloft }) {
-  // windsAloft: [{altFt, dirDeg or dir, kt}, ...]
+  // windsAloft may contain {altFt, dir} OR {altFt, dirDeg}, and kt
   const pts = [];
 
-  // Surface point at 0 ft reference (for blending)
-  if (Number.isFinite(surfaceDir) && Number.isFinite(surfaceKt)) {
-    const { u, v } = windToUV(surfaceDir, surfaceKt);
+  if (Number.isFinite(Number(surfaceDir)) && Number.isFinite(Number(surfaceKt))) {
+    const { u, v } = windToUV(Number(surfaceDir), Number(surfaceKt));
     pts.push({ altFt: 0, u, v });
   }
 
-  for (const w of (windsAloft ?? [])) {
+  for (const w of (windsAloft || [])) {
     const altFt = Number(w?.altFt);
     if (!Number.isFinite(altFt)) continue;
 
-    // Support either {dir} or {dirDeg}
-    const dir = (w?.dir != null) ? w.dir : w?.dirDeg;
+    const dirRaw = (w?.dir != null) ? w.dir : w?.dirDeg;
     const kt = Number(w?.kt ?? 0);
 
-    // If dir is null (e.g., 9900 light/variable), treat as calm vector
-    const { u, v } = (dir == null) ? { u: 0, v: 0 } : windToUV(Number(dir), kt);
+    const { u, v } =
+      (dirRaw == null || !Number.isFinite(Number(dirRaw)))
+        ? { u: 0, v: 0 }
+        : windToUV(Number(dirRaw), kt);
+
     pts.push({ altFt, u, v });
   }
 
@@ -158,13 +183,11 @@ export function buildwindprofile({ surfaceDir, surfaceKt, windsAloft }) {
   return pts;
 }
 
-// inputs.html imports windataltft()
 export function windataltft(profilePts, altFt) {
   if (!profilePts || profilePts.length === 0) return { dir: null, kt: 0 };
 
-  const a = clamp(altFt, profilePts[0].altFt, profilePts[profilePts.length - 1].altFt);
+  const a = clamp(Number(altFt), profilePts[0].altFt, profilePts[profilePts.length - 1].altFt);
 
-  // Find bracket
   let i = 0;
   while (i < profilePts.length - 1 && profilePts[i + 1].altFt < a) i++;
 
@@ -181,7 +204,10 @@ export function windataltft(profilePts, altFt) {
 }
 
 // ------------------------------------------------------------
-// DESCENT / TOD (export name matches inputs.html: computetodprofile)
+// TOD (navlog error was asking for computeTodProfile)
+// ✅ Export BOTH names so either import works:
+//   - computetodprofile (your inputs.html style)
+//   - computeTodProfile (your navlog.html currently)
 // ------------------------------------------------------------
 
 function ktsToFpm(kts) {
@@ -192,23 +218,16 @@ function computedescentangledeg({ vsFpm = 500, gsKt }) {
   const vs = Math.abs(Number(vsFpm));
   const gsFpm = ktsToFpm(Number(gsKt));
   if (!Number.isFinite(vs) || !Number.isFinite(gsFpm) || gsFpm <= 0) return NaN;
-  return Math.atan(vs / gsFpm) * 180 / Math.PI;
+  return (Math.atan(vs / gsFpm) * 180) / Math.PI;
 }
 
-/**
- * TOD profile:
- * - TAS fixed (default 90 kt)
- * - VS fixed (default 500 fpm)
- * - Winds sampled at leaving / mid / target altitude using wind profile
- * - Average GS drives TOD distance
- */
-export function computetodprofile({
+export function computeTodProfile({
   tcDeg,
   altLeavingFt,
   altTargetFt,
   tasKt = 90,
   vsFpm = 500,
-  windProfilePts = null,  // from buildwindprofile()
+  windProfilePts = null
 }) {
   const tc = Number(tcDeg);
   const a0 = Number(altLeavingFt);
@@ -223,7 +242,6 @@ export function computetodprofile({
   const altToLoseFt = Math.max(0, a0 - aT);
   const timeMin = altToLoseFt / vs;
 
-  // if no descent needed
   if (altToLoseFt <= 0) {
     return {
       ok: true,
@@ -238,10 +256,7 @@ export function computetodprofile({
 
   const aMid = aT + altToLoseFt / 2;
 
-  function windAt(altFt) {
-    if (!windProfilePts) return { dir: null, kt: 0 };
-    return windataltft(windProfilePts, altFt);
-  }
+  const windAt = (alt) => (windProfilePts ? windataltft(windProfilePts, alt) : { dir: null, kt: 0 });
 
   const w0 = windAt(a0);
   const wM = windAt(aMid);
@@ -269,34 +284,32 @@ export function computetodprofile({
   };
 }
 
+// ✅ lowercase alias for your existing imports
+export const computetodprofile = computeTodProfile;
+
 // ------------------------------------------------------------
-// POH CLIMB (export name matches inputs.html: computeclimbsegmentpoh)
+// POH CLIMB (inputs.html imports: computeclimbsegmentpoh)
 // ------------------------------------------------------------
 
 function interpPohRow(table, altFt) {
-  const alts = table.map(r => r.altFt);
-  const a = clamp(altFt, alts[0], alts[alts.length - 1]);
+  const alts = table.map(r => Number(r.altFt)).filter(Number.isFinite);
+  const a = clamp(Number(altFt), alts[0], alts[alts.length - 1]);
 
-  const timeMin = interp1(table.map(r => ({ x: r.altFt, y: r.timeMin })), a);
-  const fuelGal = interp1(table.map(r => ({ x: r.altFt, y: r.fuelGal })), a);
-  const distNm  = interp1(table.map(r => ({ x: r.altFt, y: r.distNm })), a);
-  const kias    = interp1(table.map(r => ({ x: r.altFt, y: r.kias })), a);
+  const timeMin = interp1(table.map(r => ({ x: Number(r.altFt), y: Number(r.timeMin) })), a);
+  const fuelGal = interp1(table.map(r => ({ x: Number(r.altFt), y: Number(r.fuelGal) })), a);
+  const distNm  = interp1(table.map(r => ({ x: Number(r.altFt), y: Number(r.distNm) })), a);
+  const kias    = interp1(table.map(r => ({ x: Number(r.altFt), y: Number(r.kias) })), a);
 
   return { altFt: a, timeMin, fuelGal, distNm, kias };
 }
 
 function pohTempFactor({ oatC, refAltFt }) {
-  const isa = isaTempC(refAltFt);
-  const delta = oatC - isa;
-  if (delta <= 0) return 1;
+  const isa = isaTempC(Number(refAltFt));
+  const delta = Number(oatC) - isa;
+  if (!Number.isFinite(delta) || delta <= 0) return 1;
   return 1 + 0.10 * (delta / 10);
 }
 
-/**
- * POH-accurate climb segment from field elevation to cruise altitude.
- *
- * Returns still-air POH distance + (optionally) wind-corrected distance
- */
 export function computeclimbsegmentpoh({
   aircraft,
   flapSetting,
@@ -305,21 +318,15 @@ export function computeclimbsegmentpoh({
   cruiseAltFt,
   oatC,
   altimeterInHg,
-
-  // Wind model inputs (optional; used for wind-corrected ground distance)
-  windProfilePts = null,   // from buildwindprofile()
-  stepFt = 500             // accuracy level: 500 ft slices
+  windProfilePts = null,
+  stepFt = 500
 }) {
-  const table = aircraft.climbPohFromSeaLevel;
-  if (!table || table.length < 2) {
-    throw new Error("Aircraft is missing climbPohFromSeaLevel table.");
-  }
+  const table = aircraft?.climbPohFromSeaLevel;
+  if (!table || table.length < 2) throw new Error("Aircraft is missing climbPohFromSeaLevel table.");
 
-  // Altimeter -> pressure altitude offset (ft)
+  // Altimeter -> pressure altitude offset (ft). If invalid, assume standard.
   const alt = Number(altimeterInHg);
   const altOffsetFt = Number.isFinite(alt) ? (29.92 - alt) * 1000 : 0;
-
-  // Convert MSL altitude -> Pressure Altitude (PA)
   const toPA = (mslFt) => Number(mslFt) + altOffsetFt;
 
   const startAlt = Math.max(0, Number(fieldElevFt));
@@ -328,22 +335,18 @@ export function computeclimbsegmentpoh({
   const startPA = toPA(startAlt);
   const endPA   = toPA(endAlt);
 
-  // POH values from sea level to each PA altitude (interpolated)
   const start = interpPohRow(table, startPA);
   const end   = interpPohRow(table, endPA);
 
-  // Raw POH deltas (still-air, standard temp)
   let timeMin = Math.max(0, end.timeMin - start.timeMin);
   let fuelGal = Math.max(0, end.fuelGal - start.fuelGal);
   let distNmStillAir = Math.max(0, end.distNm - start.distNm);
 
-  // Apply POH temperature correction factor
   const tf = pohTempFactor({ oatC: Number(oatC), refAltFt: startPA });
   timeMin *= tf;
   fuelGal *= tf;
   distNmStillAir *= tf;
 
-  // If we don't have a wind profile, stop here
   if (!windProfilePts) {
     return {
       method: "POH",
@@ -359,9 +362,8 @@ export function computeclimbsegmentpoh({
     };
   }
 
-  // Wind-corrected ground distance integration
   const deltaAlt = endAlt - startAlt;
-  const n = Math.max(1, Math.ceil(deltaAlt / stepFt));
+  const n = Math.max(1, Math.ceil(deltaAlt / Number(stepFt)));
   let distNmWind = 0;
 
   for (let i = 0; i < n; i++) {
@@ -373,21 +375,17 @@ export function computeclimbsegmentpoh({
     const pa2 = toPA(a2);
     const paMid = toPA(amid);
 
-    // POH time between PA(a1) and PA(a2), then apply temp factor
     const r1 = interpPohRow(table, pa1);
     const r2 = interpPohRow(table, pa2);
 
     let sliceTimeMin = Math.max(0, r2.timeMin - r1.timeMin);
     sliceTimeMin *= tf;
 
-    // Use POH climb speed schedule keyed by PA
     const kias = interpPohRow(table, paMid).kias;
 
-    // IAS -> CAS, then CAS -> TAS using PRESSURE ALTITUDE
     const kcas = kiastokcas(aircraft, flapSetting, kias);
     const tasKt = casToTasKt(kcas, paMid, Number(oatC));
 
-    // Wind at this altitude (winds aloft are MSL-based)
     const w = windataltft(windProfilePts, amid);
 
     const wind = computewinds({
