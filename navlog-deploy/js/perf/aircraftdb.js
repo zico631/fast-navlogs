@@ -1,4 +1,4 @@
-// aircraftDb.js
+// aircraftdb.js
 // Cessna 172S / 172SP performance data (POH-based, for training use)
 
 export const aircraftDb = {
@@ -96,3 +96,4 @@ export const aircraftDb = {
     }
   }
 };
+
