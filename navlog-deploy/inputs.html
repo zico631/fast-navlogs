@@ -381,7 +381,7 @@
     width:100% !important;    /* overrides global 200px width */
     box-sizing:border-box;
   }
-  
+
 
   /* Button row spans full width cleanly */
   .helperFull{
@@ -809,10 +809,10 @@
 ========================= -->
 <script type="module">
   import { aircraftdb } from "./js/perf/aircraftdb.js";
-  import { buildWindProfile, windAtAltFt, computeClimbSegmentPOH, lookupCruise, computeTodProfile } from "./js/perf/perfengine.js";
+  import { buildwindprofile, windataltft, computeclimbsegmentpoh, lookupcruise, computetodprofile } from "./js/perf/perfengine.js";
   import { round } from "./js/perf/perfutils.js";
-  import { loadPlan, savePlan } from "./js/plan/store.js";
-  import { parseVarToken } from "./js/perf/navmath.js";
+  import { loadplan, saveplan } from "./js/plan/store.js";
+  import { parsevartoken } from "./js/perf/navmath.js";
   console.log("✅ inputs.html module loaded");
 
   // -----------------------------
@@ -1015,13 +1015,13 @@ function tempAtAltFromSurfaceAnd6000(targetAltFt, surfaceAltFt, surfaceTempC, te
     const calm = Number.isFinite(surfaceKt) && surfaceKt === 0;
     const surfaceDir = calm ? 0 : parseDegText(surfaceWindFromEl.value);
 
-    const profile = buildWindProfile({
+    const profile = buildwindprofile({
       surfaceDir,
       surfaceKt,
       windsAloft: winds
     });
 
-    const w = windAtAltFt(profile, cruiseAltFt);
+    const w = windataltft(profile, cruiseAltFt);
 
     if (!w || !Number.isFinite(w.dir) || !Number.isFinite(w.kt)) {
       aloftCruisePillEl.textContent = `Cruise wind @ ${Math.round(cruiseAltFt)}: —`;
@@ -1036,11 +1036,11 @@ function tempAtAltFromSurfaceAnd6000(targetAltFt, surfaceAltFt, surfaceTempC, te
 
     plan.env.windFromDeg = w.dir;
     plan.env.windKt = w.kt;
-    savePlan(plan);
+    saveplan(plan);
 
     const tCruise = tempAtAltFt(plan.env.aloftPts, cruiseAltFt);
     plan.env.tempCruiseC = Number.isFinite(tCruise) ? tCruise : NaN;
-    savePlan(plan);
+    saveplan(plan);
   }
 
   async function fetchAloftStation(region, level, station) {
@@ -1084,7 +1084,7 @@ function tempAtAltFromSurfaceAnd6000(targetAltFt, surfaceAltFt, surfaceTempC, te
       });
     }
 
-    const windProfilePts = buildWindProfile({
+    const windProfilePts = buildwindprofile({
       surfaceDir: windsCalm ? 0 : surfaceWindFromDeg,
       surfaceKt: windsCalm ? 0 : surfaceWindKt,
       windsAloft
@@ -1092,7 +1092,7 @@ function tempAtAltFromSurfaceAnd6000(targetAltFt, surfaceAltFt, surfaceTempC, te
 
     console.log("DEBUG windProfilePts sample:", windProfilePts);
 
-    const climb = computeClimbSegmentPOH({
+    const climb = computeclimbsegmentpoh({
       aircraft,
       flapSetting,
       climbTcDeg: firstFixTcDeg,
@@ -1149,7 +1149,7 @@ function computeTripTotals(plan) {
   return { ok:true, tripTotalNm: tripTotal };
 }
 
-  const plan = loadPlan();
+  const plan = loadplan();
   plan.env = plan.env && typeof plan.env === "object" ? plan.env : {};
   plan.legs = Array.isArray(plan.legs) ? plan.legs : [];
 
@@ -1185,20 +1185,20 @@ function computeTripTotals(plan) {
   const climbNumbersPillEl = document.getElementById("climbNumbersPill");
   const todPreviewPillEl = document.getElementById("todPreviewPill");
   const tocResultPillEl = document.getElementById("tocResultPill"); // ✅ NEW
-  
+
 
   const waRegionEl = document.getElementById("waRegion");
   const waLevelEl = document.getElementById("waLevel");
   const waStationEl = document.getElementById("waStation");
 
   // =========================================
-// Winds Aloft Dropdown Wiring
-// =========================================
+  // Winds Aloft Dropdown Wiring
+  // =========================================
 
 if (waRegionEl) {
   waRegionEl.addEventListener("change", () => {
     plan.env.waRegion = waRegionEl.value;
-    savePlan(plan);
+    saveplan(plan);
     loadWindsAloftStations();   // refresh station list
   });
 }
@@ -1206,7 +1206,7 @@ if (waRegionEl) {
 if (waLevelEl) {
   waLevelEl.addEventListener("change", () => {
     plan.env.waLevel = waLevelEl.value;
-    savePlan(plan);
+    saveplan(plan);
     loadWindsAloftStations();   // refresh station list
   });
 }
@@ -1214,7 +1214,7 @@ if (waLevelEl) {
 if (waStationEl) {
   waStationEl.addEventListener("change", () => {
     plan.env.waStation = (waStationEl.value || "").toUpperCase();
-    savePlan(plan);
+    saveplan(plan);
   });
 }
 
@@ -1271,7 +1271,7 @@ if (waStationEl) {
   if (destIcaoEl) {
     destIcaoEl.addEventListener("input", () => {
       plan.env.destIcao = String(destIcaoEl.value || "").trim().toUpperCase();
-      savePlan(plan);
+      saveplan(plan);
       updateTodPreview();
     });
 
@@ -1279,7 +1279,7 @@ if (waStationEl) {
       const v = String(destIcaoEl.value || "").trim().toUpperCase();
       destIcaoEl.value = v;
       plan.env.destIcao = v;
-      savePlan(plan);
+      saveplan(plan);
       updateTodPreview();
     });
   }
@@ -1288,29 +1288,29 @@ if (waStationEl) {
     destTpaEl.addEventListener("input", () => {
       const v = Number(destTpaEl.value);
       plan.env.destTpaFt = Number.isFinite(v) ? v : NaN;
-      savePlan(plan);
+      saveplan(plan);
       updateTodPreview();
     });
 
     destTpaEl.addEventListener("blur", () => {
       const v = Number(destTpaEl.value);
       plan.env.destTpaFt = Number.isFinite(v) ? v : NaN;
-      savePlan(plan);
+      saveplan(plan);
       updateTodPreview();
     });
   }
 
   // ==============================
-// ✅ Destination panel: persist fields
-// Paste this RIGHT AFTER your destTpaEl block
-// ==============================
+  // ✅ Destination panel: persist fields
+  // Paste this RIGHT AFTER your destTpaEl block
+  // ==============================
 
-// dest field elevation
+  // dest field elevation
 if (destFieldElevEl) {
   const saveDestFieldElev = () => {
     const v = Number(destFieldElevEl.value);
     plan.env.destFieldElevFt = Number.isFinite(v) ? v : NaN;
-    savePlan(plan);
+    saveplan(plan);
   };
   destFieldElevEl.addEventListener("input", saveDestFieldElev);
   destFieldElevEl.addEventListener("blur", saveDestFieldElev);
@@ -1321,7 +1321,7 @@ if (destOatEl) {
   const saveDestOat = () => {
     const v = Number(destOatEl.value);
     plan.env.destOatC = Number.isFinite(v) ? v : NaN;
-    savePlan(plan);
+    saveplan(plan);
   };
   destOatEl.addEventListener("input", saveDestOat);
   destOatEl.addEventListener("blur", saveDestOat);
@@ -1332,7 +1332,7 @@ if (destAltimeterEl) {
   const saveDestAlt = () => {
     const v = Number(destAltimeterEl.value);
     plan.env.destAltimeterInHg = Number.isFinite(v) ? v : NaN;
-    savePlan(plan);
+    saveplan(plan);
   };
   destAltimeterEl.addEventListener("input", saveDestAlt);
   destAltimeterEl.addEventListener("blur", () => {
@@ -1348,7 +1348,7 @@ if (destWindKtEl) {
   const saveDestWind = () => {
     const v = Number(destWindKtEl.value);
     plan.env.destSurfaceWindKt = Number.isFinite(v) ? v : NaN;
-    savePlan(plan);
+    saveplan(plan);
   };
   destWindKtEl.addEventListener("input", saveDestWind);
   destWindKtEl.addEventListener("blur", saveDestWind);
@@ -1385,7 +1385,7 @@ if (destWindKtEl) {
   function updateCruisePerfUI() {
     if (!cruisePerfPillEl) return;
 
-    const ac = aircraftDb[plan.aircraftId ?? "C172S"];
+    const ac = aircraftdb[plan.aircraftId ?? "C172S"];
     if (!ac) {
       cruisePerfPillEl.textContent = "Cruise TAS / GPH: (aircraft missing)";
       cruisePerfPillEl.className = "pill warn";
@@ -1402,7 +1402,7 @@ if (destWindKtEl) {
       return;
     }
 
-    const out = lookupCruise(ac, pAlt, rpm, oatC);
+    const out = lookupcruise(ac, pAlt, rpm, oatC);
 
     plan.env.cruiseTasKt = out.ktas;
     plan.env.cruiseGph   = out.gph;
@@ -1413,7 +1413,7 @@ if (destWindKtEl) {
     cruisePerfPillEl.textContent = `Cruise TAS / GPH: ${tasTxt} / ${gphTxt} @ ${rpm} RPM`;
     cruisePerfPillEl.className = "pill ok";
 
-    savePlan(plan);
+    saveplan(plan);
   }
 
   if (rpmPillsEl) {
@@ -1575,7 +1575,7 @@ function setTocResultPill(resOrObj) {
       gsPillEl.textContent = "GS: —";
       gsPillEl.className = "pill warn";
       plan.env.gsKt = NaN;
-      savePlan(plan);
+      saveplan(plan);
       return;
     }
 
@@ -1583,7 +1583,7 @@ function setTocResultPill(resOrObj) {
     gsPillEl.className = "pill ok";
 
     plan.env.gsKt = gs;
-    savePlan(plan);
+    saveplan(plan);
   }
 
   function getLockedFromCheckpoint3() {
@@ -1640,7 +1640,7 @@ function setTocResultPill(resOrObj) {
         aloftCruisePillEl.className = "pill ok";
       }
 
-      savePlan(plan);
+      saveplan(plan);
       recalcTOCOrderAndPreview();
       updateCruiseWindPill();
     } catch (e) {
@@ -1651,7 +1651,7 @@ function setTocResultPill(resOrObj) {
   });
 
   function recalcTOCOrderAndPreview() {
-    const plan = loadPlan();
+    const plan = loadplan();
     if (!plan || !plan.env) return { ok: false, error: "Missing plan/env" };
     const env = plan.env;
 
@@ -1668,7 +1668,7 @@ function setTocResultPill(resOrObj) {
       return { ok: false, error: err };
     }
 
-    const ac = aircraftDb[aircraftEl.value];
+    const ac = aircraftdb[aircraftEl.value];
 
     const cruiseAltFt = Number(cruiseAltEl.value);
     const surfaceKt = Number(surfaceWindKtEl.value);
@@ -1786,7 +1786,7 @@ console.log("TOC fields:", {
 
     renderLegs();
     updateTodPreview();
-    savePlan(plan);
+    saveplan(plan);
     return { ...res, dep, firstFixName, cruiseAltFt };
   }
 
@@ -1810,7 +1810,7 @@ console.log("TOC fields:", {
 
   function clearTodEnv() {
     plan.env.tod = null;
-    savePlan(plan);
+    saveplan(plan);
   }
 
   function updateTodPreview() {
@@ -1873,7 +1873,7 @@ console.log("TOC fields:", {
       return;
     }
 
-    const tod = computeTodProfile({
+    const tod = computetodprofile({
       tcDeg: Number(lastLeg?.tcDeg),
       altLeavingFt: cruiseAltFt,
       altTargetFt: tpaFt,
@@ -1914,7 +1914,7 @@ console.log("TOC fields:", {
       from,
       to
     };
-    savePlan(plan);
+    saveplan(plan);
 
     todPreviewPillEl.textContent =
       `TOD: begin descent ~${tod.todNm.toFixed(1)} NM before ${dest} ` +
@@ -1931,12 +1931,12 @@ console.log("TOC fields:", {
 for (const el of recalcFields) {
   el.addEventListener("input", () => {
     recalcTOCOrderAndPreview();
-    savePlan(plan);
+    saveplan(plan);
   });
 
   el.addEventListener("change", () => {
     recalcTOCOrderAndPreview();
-    savePlan(plan);
+    saveplan(plan);
   });
 }
 
@@ -1953,14 +1953,14 @@ for (const el of recalcFields) {
   if (timeOffLocalEl) {
     timeOffLocalEl.addEventListener("input", () => {
       plan.env.timeOffLocal = String(timeOffLocalEl.value || "").trim();
-      savePlan(plan);
+      saveplan(plan);
     });
 
     timeOffLocalEl.addEventListener("blur", () => {
       const norm = normalizeHHMM(timeOffLocalEl.value);
       timeOffLocalEl.value = norm || timeOffLocalEl.value;
       plan.env.timeOffLocal = norm || "";
-      savePlan(plan);
+      saveplan(plan);
     });
   }
 
@@ -1968,7 +1968,7 @@ for (const el of recalcFields) {
     fuelStartGalEl.addEventListener("input", () => {
       const v = Number(fuelStartGalEl.value);
       plan.env.fuelOnBoardGal = Number.isFinite(v) ? v : NaN;
-      savePlan(plan);
+      saveplan(plan);
     });
   }
 
@@ -1976,7 +1976,7 @@ for (const el of recalcFields) {
     altimeterEl.addEventListener("input", () => {
       const v = Number(altimeterEl.value);
       plan.env.altimeterInHg = Number.isFinite(v) ? v : NaN;
-      savePlan(plan);
+      saveplan(plan);
       recalcTOCOrderAndPreview();
     });
 
@@ -1984,7 +1984,7 @@ for (const el of recalcFields) {
       const v = Number(altimeterEl.value);
       if (Number.isFinite(v)) altimeterEl.value = v.toFixed(2);
       plan.env.altimeterInHg = Number.isFinite(v) ? v : NaN;
-      savePlan(plan);
+      saveplan(plan);
       recalcTOCOrderAndPreview();
     });
   }
@@ -2029,12 +2029,12 @@ for (const el of recalcFields) {
       tr.querySelector(".from").addEventListener("input", e => {
         const cleaned = e.target.value.replace(/^\d+\.\s*/, "");
         plan.legs[i].from = cleaned;
-        savePlan(plan);
+        saveplan(plan);
       });
 
       tr.querySelector(".to").addEventListener("input", e => {
         plan.legs[i].to = e.target.value;
-        savePlan(plan);
+        saveplan(plan);
         updateTodPreview();
       });
 
@@ -2043,7 +2043,7 @@ for (const el of recalcFields) {
         if (!plan.legs[i]) plan.legs[i] = { from:"", to:"", tcDeg: NaN, distNm: NaN, wcaDeg: 0 };
 
         plan.legs[i].tcDeg = parseDegText(e.target.value);
-        savePlan(plan);
+        saveplan(plan);
         updateTodPreview();
       });
 
@@ -2052,7 +2052,7 @@ for (const el of recalcFields) {
   plan.legs[i].distNm = Number.isFinite(v) ? v : NaN;
 
   computeTripTotals(plan);
-  savePlan(plan);
+  saveplan(plan);
   updateTodPreview();
 });
 
@@ -2061,7 +2061,7 @@ for (const el of recalcFields) {
         plan.legs.splice(idx, 1);
 
         computeTripTotals(plan);
-        savePlan(plan);
+        saveplan(plan);
 
         renderLegs();
         recalcTOCOrderAndPreview();
@@ -2077,7 +2077,7 @@ for (const el of recalcFields) {
   plan.legs.push({ from:"", to:"", tcDeg:0, distNm:0, wcaDeg:0 });
 
   computeTripTotals(plan);
-  savePlan(plan);
+  saveplan(plan);
 
   computeLegHeadingsFromVariationOnly();
   renderLegs();
@@ -2087,7 +2087,7 @@ for (const el of recalcFields) {
 
   function updateMagVarUIAndStore() {
     const token = String(magVarEl?.value || "").trim();
-    const parsed = parseVarToken(token);
+    const parsed = parsevartoken(token);
 
     plan.env.magVar = token;
     plan.env.magVarDir = parsed.dir;
@@ -2101,7 +2101,7 @@ for (const el of recalcFields) {
       }
     }
 
-    savePlan(plan);
+    saveplan(plan);
   }
 
   function hydrateInputsFromPlan() {
