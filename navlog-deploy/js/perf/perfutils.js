@@ -1,4 +1,4 @@
-// perfUtils.js
+// perfutils.js
 
 export function lerp(x, x0, x1, y0, y1) {
   if (x1 === x0) return y0;
@@ -77,3 +77,4 @@ export function interp2({ xKeys, yKeys, getValue }, x, y) {
 
   return (y0 === y1) ? r1 : lerp(yC, y0, y1, r1, r2);
 }
+
