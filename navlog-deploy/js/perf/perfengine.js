@@ -22,11 +22,11 @@ function tempKeyFromDelta(deltaC) {
 }
 
 // ------------------------------------------------------------
-// CRUISE (existing)
+// CRUISE (export name matches inputs.html: lookupcruise)
 // ------------------------------------------------------------
 
 // Cruise performance lookup with interpolation
-export function lookupCruise(aircraft, pressureAltFt, rpm, oatC) {
+export function lookupcruise(aircraft, pressureAltFt, rpm, oatC) {
   const cruise = aircraft.cruise;
 
   const altKeys = Object.keys(cruise).map(Number).sort((a, b) => a - b);
@@ -79,7 +79,7 @@ export function lookupCruise(aircraft, pressureAltFt, rpm, oatC) {
 }
 
 // Wind correction and groundspeed (training-style)
-export function computeWinds({ tcDeg, tasKt, windFromDeg, windKt }) {
+export function computewinds({ tcDeg, tasKt, windFromDeg, windKt }) {
   const delta = deg2rad(norm360(windFromDeg - tcDeg));
   const crosswind = windKt * Math.sin(delta);
   const headwind = windKt * Math.cos(delta);
@@ -100,14 +100,14 @@ export function computeWinds({ tcDeg, tasKt, windFromDeg, windKt }) {
 }
 
 // KIAS → KCAS via POH calibration table
-export function kiasToKcas(aircraft, flapSetting, kias) {
+export function kiastokcas(aircraft, flapSetting, kias) {
   const table = aircraft.airspeedCal?.[flapSetting];
   if (!table) return kias;
   return interp1(table.map(p => ({ x: p.kias, y: p.kcas })), kias);
 }
 
 // ------------------------------------------------------------
-// WIND PROFILE (prep for accurate+fast local interpolation)
+// WIND PROFILE (export names match inputs.html)
 // ------------------------------------------------------------
 
 function windToUV(dirDeg, kt) {
@@ -130,31 +130,36 @@ function uvToWind(u, v) {
   return { dir: fromDeg, kt };
 }
 
-export function buildWindProfile({ surfaceDir, surfaceKt, windsAloft }) {
-  // windsAloft: [{altFt, dir, kt}, ...]
+// inputs.html imports buildwindprofile()
+export function buildwindprofile({ surfaceDir, surfaceKt, windsAloft }) {
+  // windsAloft: [{altFt, dirDeg or dir, kt}, ...]
   const pts = [];
 
-  // Surface point at 0 ft AGL-ish reference (for blending)
+  // Surface point at 0 ft reference (for blending)
   if (Number.isFinite(surfaceDir) && Number.isFinite(surfaceKt)) {
     const { u, v } = windToUV(surfaceDir, surfaceKt);
     pts.push({ altFt: 0, u, v });
   }
 
   for (const w of (windsAloft ?? [])) {
-    if (!Number.isFinite(w?.altFt)) continue;
-    const dir = w?.dir;
-    const kt = w?.kt ?? 0;
+    const altFt = Number(w?.altFt);
+    if (!Number.isFinite(altFt)) continue;
+
+    // Support either {dir} or {dirDeg}
+    const dir = (w?.dir != null) ? w.dir : w?.dirDeg;
+    const kt = Number(w?.kt ?? 0);
 
     // If dir is null (e.g., 9900 light/variable), treat as calm vector
-    const { u, v } = (dir == null) ? { u: 0, v: 0 } : windToUV(dir, kt);
-    pts.push({ altFt: w.altFt, u, v });
+    const { u, v } = (dir == null) ? { u: 0, v: 0 } : windToUV(Number(dir), kt);
+    pts.push({ altFt, u, v });
   }
 
   pts.sort((a, b) => a.altFt - b.altFt);
   return pts;
 }
 
-export function windAtAltFt(profilePts, altFt) {
+// inputs.html imports windataltft()
+export function windataltft(profilePts, altFt) {
   if (!profilePts || profilePts.length === 0) return { dir: null, kt: 0 };
 
   const a = clamp(altFt, profilePts[0].altFt, profilePts[profilePts.length - 1].altFt);
@@ -176,14 +181,14 @@ export function windAtAltFt(profilePts, altFt) {
 }
 
 // ------------------------------------------------------------
-// DESCENT / TOD (NEW) — 3:1 baseline + wind-profile GS refinement
+// DESCENT / TOD (export name matches inputs.html: computetodprofile)
 // ------------------------------------------------------------
 
 function ktsToFpm(kts) {
   return (Number(kts) * 6076.12) / 60;
 }
 
-export function computeDescentAngleDeg({ vsFpm = 500, gsKt }) {
+function computedescentangledeg({ vsFpm = 500, gsKt }) {
   const vs = Math.abs(Number(vsFpm));
   const gsFpm = ktsToFpm(Number(gsKt));
   if (!Number.isFinite(vs) || !Number.isFinite(gsFpm) || gsFpm <= 0) return NaN;
@@ -197,13 +202,13 @@ export function computeDescentAngleDeg({ vsFpm = 500, gsKt }) {
  * - Winds sampled at leaving / mid / target altitude using wind profile
  * - Average GS drives TOD distance
  */
-export function computeTodProfile({
+export function computetodprofile({
   tcDeg,
   altLeavingFt,
   altTargetFt,
   tasKt = 90,
   vsFpm = 500,
-  windProfilePts = null,  // from buildWindProfile()
+  windProfilePts = null,  // from buildwindprofile()
 }) {
   const tc = Number(tcDeg);
   const a0 = Number(altLeavingFt);
@@ -233,19 +238,18 @@ export function computeTodProfile({
 
   const aMid = aT + altToLoseFt / 2;
 
-  // If no wind profile provided, assume calm (still gives basic 3:1-ish output)
   function windAt(altFt) {
     if (!windProfilePts) return { dir: null, kt: 0 };
-    return windAtAltFt(windProfilePts, altFt);
+    return windataltft(windProfilePts, altFt);
   }
 
   const w0 = windAt(a0);
   const wM = windAt(aMid);
   const wT = windAt(aT);
 
-  const gs0 = computeWinds({ tcDeg: tc, tasKt: tas, windFromDeg: w0.dir ?? 0, windKt: w0.kt ?? 0 }).gsKt;
-  const gsM = computeWinds({ tcDeg: tc, tasKt: tas, windFromDeg: wM.dir ?? 0, windKt: wM.kt ?? 0 }).gsKt;
-  const gsT = computeWinds({ tcDeg: tc, tasKt: tas, windFromDeg: wT.dir ?? 0, windKt: wT.kt ?? 0 }).gsKt;
+  const gs0 = computewinds({ tcDeg: tc, tasKt: tas, windFromDeg: w0.dir ?? 0, windKt: w0.kt ?? 0 }).gsKt;
+  const gsM = computewinds({ tcDeg: tc, tasKt: tas, windFromDeg: wM.dir ?? 0, windKt: wM.kt ?? 0 }).gsKt;
+  const gsT = computewinds({ tcDeg: tc, tasKt: tas, windFromDeg: wT.dir ?? 0, windKt: wT.kt ?? 0 }).gsKt;
 
   const avgGsKt = (gs0 + gsM + gsT) / 3;
   const todNm = avgGsKt * (timeMin / 60);
@@ -256,7 +260,7 @@ export function computeTodProfile({
     timeMin,
     avgGsKt,
     todNm,
-    descentAngleDeg: computeDescentAngleDeg({ vsFpm: vs, gsKt: avgGsKt }),
+    descentAngleDeg: computedescentangledeg({ vsFpm: vs, gsKt: avgGsKt }),
     samples: [
       { label: "leaving", altFt: a0, dir: w0.dir, kt: w0.kt, gsKt: gs0 },
       { label: "mid",     altFt: aMid, dir: wM.dir, kt: wM.kt, gsKt: gsM },
@@ -266,42 +270,10 @@ export function computeTodProfile({
 }
 
 // ------------------------------------------------------------
-// CLIMB GS (existing, constant IAS at a single altitude)
-// ------------------------------------------------------------
-
-export function computeClimbGS({
-  aircraft,
-  flapSetting,
-  climbTcDeg,
-  climbKias,
-  pressureAltFt,
-  oatC,
-  windFromDeg,
-  windKt
-}) {
-  const kcas = kiasToKcas(aircraft, flapSetting, climbKias);
-  const tasKt = casToTasKt(kcas, pressureAltFt, oatC);
-
-  const wind = computeWinds({
-    tcDeg: climbTcDeg,
-    tasKt,
-    windFromDeg,
-    windKt
-  });
-
-  return {
-    kcas,
-    tasKt,
-    ...wind
-  };
-}
-
-// ------------------------------------------------------------
-// POH CLIMB (NEW) — Accurate time/fuel/distance
+// POH CLIMB (export name matches inputs.html: computeclimbsegmentpoh)
 // ------------------------------------------------------------
 
 function interpPohRow(table, altFt) {
-  // table: [{altFt, timeMin, fuelGal, distNm, kias}, ...]
   const alts = table.map(r => r.altFt);
   const a = clamp(altFt, alts[0], alts[alts.length - 1]);
 
@@ -314,8 +286,6 @@ function interpPohRow(table, altFt) {
 }
 
 function pohTempFactor({ oatC, refAltFt }) {
-  // POH note: increase by 10% for each 10°C above standard.
-  // We'll compute delta from ISA at a reference altitude (we use field elevation).
   const isa = isaTempC(refAltFt);
   const delta = oatC - isa;
   if (delta <= 0) return 1;
@@ -325,14 +295,9 @@ function pohTempFactor({ oatC, refAltFt }) {
 /**
  * POH-accurate climb segment from field elevation to cruise altitude.
  *
- * - Uses aircraft.climbPohFromSeaLevel (time/fuel/dist from sea level)
- * - Applies POH temp correction (+10% per +10C above standard)
- * - Returns still-air POH distance + (optionally) wind-corrected distance
- *
- * For wind-corrected distance we will integrate with small slices USING POH time
- * between altitudes and a wind profile (fast local interpolation).
+ * Returns still-air POH distance + (optionally) wind-corrected distance
  */
-export function computeClimbSegmentPOH({
+export function computeclimbsegmentpoh({
   aircraft,
   flapSetting,
   climbTcDeg,
@@ -342,7 +307,7 @@ export function computeClimbSegmentPOH({
   altimeterInHg,
 
   // Wind model inputs (optional; used for wind-corrected ground distance)
-  windProfilePts = null,   // from buildWindProfile()
+  windProfilePts = null,   // from buildwindprofile()
   stepFt = 500             // accuracy level: 500 ft slices
 }) {
   const table = aircraft.climbPohFromSeaLevel;
@@ -350,18 +315,16 @@ export function computeClimbSegmentPOH({
     throw new Error("Aircraft is missing climbPohFromSeaLevel table.");
   }
 
-  // ✅ Altimeter -> pressure altitude offset (ft)
-  // If altimeter is missing/invalid, treat as "standard" (no offset).
+  // Altimeter -> pressure altitude offset (ft)
   const alt = Number(altimeterInHg);
   const altOffsetFt = Number.isFinite(alt) ? (29.92 - alt) * 1000 : 0;
 
   // Convert MSL altitude -> Pressure Altitude (PA)
   const toPA = (mslFt) => Number(mslFt) + altOffsetFt;
 
-  const startAlt = Math.max(0, fieldElevFt);
-  const endAlt = Math.max(startAlt, cruiseAltFt);
+  const startAlt = Math.max(0, Number(fieldElevFt));
+  const endAlt = Math.max(startAlt, Number(cruiseAltFt));
 
-  // ✅ POH table lookup uses PRESSURE ALTITUDE (PA), not MSL
   const startPA = toPA(startAlt);
   const endPA   = toPA(endAlt);
 
@@ -374,13 +337,13 @@ export function computeClimbSegmentPOH({
   let fuelGal = Math.max(0, end.fuelGal - start.fuelGal);
   let distNmStillAir = Math.max(0, end.distNm - start.distNm);
 
-  // Apply POH temperature correction factor (use PA reference for ISA comparison)
-  const tf = pohTempFactor({ oatC, refAltFt: startPA });
+  // Apply POH temperature correction factor
+  const tf = pohTempFactor({ oatC: Number(oatC), refAltFt: startPA });
   timeMin *= tf;
   fuelGal *= tf;
   distNmStillAir *= tf;
 
-  // If we don't have a wind profile, stop here (still-air POH distance)
+  // If we don't have a wind profile, stop here
   if (!windProfilePts) {
     return {
       method: "POH",
@@ -396,14 +359,9 @@ export function computeClimbSegmentPOH({
     };
   }
 
-  // Wind-corrected ground distance:
-  // Integrate across altitude slices using POH TIME between slice endpoints.
-  // IMPORTANT:
-  // - POH rows are keyed by PA, so r1/r2/kias must use PA
-  // - Winds aloft are keyed by MSL, so windAtAltFt uses MSL (amid)
+  // Wind-corrected ground distance integration
   const deltaAlt = endAlt - startAlt;
   const n = Math.max(1, Math.ceil(deltaAlt / stepFt));
-
   let distNmWind = 0;
 
   for (let i = 0; i < n; i++) {
@@ -425,15 +383,15 @@ export function computeClimbSegmentPOH({
     // Use POH climb speed schedule keyed by PA
     const kias = interpPohRow(table, paMid).kias;
 
-    // Convert IAS -> CAS, then CAS -> TAS using PRESSURE ALTITUDE
-    const kcas = kiasToKcas(aircraft, flapSetting, kias);
-    const tasKt = casToTasKt(kcas, paMid, oatC);
+    // IAS -> CAS, then CAS -> TAS using PRESSURE ALTITUDE
+    const kcas = kiastokcas(aircraft, flapSetting, kias);
+    const tasKt = casToTasKt(kcas, paMid, Number(oatC));
 
     // Wind at this altitude (winds aloft are MSL-based)
-    const w = windAtAltFt(windProfilePts, amid);
+    const w = windataltft(windProfilePts, amid);
 
-    const wind = computeWinds({
-      tcDeg: climbTcDeg,
+    const wind = computewinds({
+      tcDeg: Number(climbTcDeg),
       tasKt,
       windFromDeg: w.dir ?? 0,
       windKt: w.kt ?? 0
@@ -455,5 +413,3 @@ export function computeClimbSegmentPOH({
     distNmWindCorrected: distNmWind
   };
 }
-
-
