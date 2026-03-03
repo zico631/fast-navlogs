@@ -1,4 +1,4 @@
-// perfEngine.js
+// perfengine.js
 import {
   clamp,
   lerp,
@@ -455,3 +455,4 @@ export function computeClimbSegmentPOH({
     distNmWindCorrected: distNmWind
   };
 }
+
