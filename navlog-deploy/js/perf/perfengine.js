@@ -9,7 +9,7 @@ import {
   rad2deg,
   norm360,
   casToTasKt
-} from "./perfUtils.js";
+} from "./perfutils.js";
 
 // Helper to choose POH temp columns based on delta from standard
 function tempKeyFromDelta(deltaC) {
@@ -455,4 +455,5 @@ export function computeClimbSegmentPOH({
     distNmWindCorrected: distNmWind
   };
 }
+
 
