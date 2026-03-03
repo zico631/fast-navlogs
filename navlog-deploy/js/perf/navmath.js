@@ -1,4 +1,4 @@
-// navMath.js
+// navmath.js
 
 export function norm360(deg) {
   const d = ((deg % 360) + 360) % 360;
@@ -56,3 +56,4 @@ export function parseVarToken(tok) {
   if (!m) return { dir: null, deg: 0 };
   return { dir: m[1], deg: Number(m[2]) };
 }
+
