@@ -601,7 +601,7 @@ function buildDisplayLegs(plan) {
         if (cum + d >= tocFromFirstFixNm) {
           const a = tocFromFirstFixNm - cum;
           const b = d - a;
-          const original = out[i];
+          const original = { ...out[i] };
 
           const legA = {
             ...original,
@@ -1357,3 +1357,4 @@ function tempAtAltFromSurfaceAnd6000(env, altFt) {
   </script>
 </body>
 </html>
+
