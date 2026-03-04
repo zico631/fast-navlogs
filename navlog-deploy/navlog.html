@@ -1131,17 +1131,20 @@ console.log("✅ autopopulate available:", typeof window.autopopulate);
     window.addEventListener("focus", autopopulate);
 
     // INIT
-    try {
-      setHud("Drag to measure a box...");
-      drawAllBoxes();
-      autopopulate();
-    } catch (err) {
-      console.error("INIT ERROR:", err);
-      alert("Navlog init error — check console.");
-    }
+    window.addEventListener("DOMContentLoaded", () => {
+  try {
+    setHud("Drag to measure a box...");
+    drawAllBoxes();
+    autopopulate(); // populate boxes on page load
+  } catch (err) {
+    console.error("INIT ERROR:", err);
+    alert("Navlog init error — check console.");
+  }
+});
   </script>
 </body>
 </html>
+
 
 
 
