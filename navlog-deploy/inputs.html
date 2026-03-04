@@ -402,7 +402,7 @@
             <div class="row" style="margin-top:10px">
               <div>
                 <label>Surface Wind Speed (kt)</label>
-                <input id="surfaceWindKt" type="number" placeholder="">
+                <input id="surfaceWindKt" type="text" inputmode="numeric" maxlength="3" placeholder="">
               </div>
 
               <div>
@@ -695,9 +695,6 @@
     } from "./js/perf/perfengine.js";
     import { round } from "./js/perf/perfutils.js";
 
-    // ✅ IMPORTANT FIX:
-    // Use the SAME store module + SAME export names as navlog.html:
-    // navlog.html imports { loadPlan, savePlan, STORAGE_KEY } from "./js/plan/store.js"
     import { loadPlan, savePlan, STORAGE_KEY } from "./js/plan/store.js";
 
     import { parsevartoken } from "./js/perf/navmath.js";
@@ -740,6 +737,19 @@
         const d = parseDegText(v);
         if (!Number.isFinite(d)) return;
         el.value = formatDeg3(d);
+      });
+    }
+
+    // ✅ Wind speed: 3-digit format behavior (same pattern as setDirInputBehavior)
+    function setWindSpeedBehavior(el) {
+      if (!el) return;
+      el.addEventListener("input", () => {
+        el.value = el.value.replace(/[^\d]/g, "").slice(0, 3);
+      });
+      el.addEventListener("blur", () => {
+        const v = String(el.value || "").trim();
+        if (v === "" || !Number.isFinite(Number(v))) return;
+        el.value = String(Math.round(Number(v))).padStart(3, "0");
       });
     }
 
@@ -833,8 +843,17 @@
     const legsBody = document.getElementById("legsBody");
     const addLegBtn = document.getElementById("addLegBtn");
 
+    // ✅ Wire up all input behaviors
     setDirInputBehavior(surfaceWindFromEl);
     setDirInputBehavior(firstFixTcEl);
+    setWindSpeedBehavior(surfaceWindKtEl);
+
+    // ✅ Auto-caps departure ICAO as user types
+    depIcaoEl?.addEventListener("input", () => {
+      const pos = depIcaoEl.selectionStart;
+      depIcaoEl.value = depIcaoEl.value.toUpperCase();
+      depIcaoEl.setSelectionRange(pos, pos);
+    });
 
     // -----------------------------
     // Trip totals (route legs only)
@@ -1662,14 +1681,22 @@
       if (destIcaoEl) destIcaoEl.value = (plan.env.destIcao ?? "").toUpperCase();
 
       fieldElevEl.value = (plan.env.fieldElevFt ?? "");
-      oatEl.value = (plan.env.oatC ?? 15);
+      // ✅ CHANGE: blank on first visit (no default 15)
+      oatEl.value = (plan.env.oatC ?? "");
 
       if (altimeterEl) {
         const a = Number(plan.env.altimeterInHg);
         altimeterEl.value = Number.isFinite(a) ? a.toFixed(2) : "";
       }
 
-      surfaceWindKtEl.value = (plan.env.surfaceWindKt ?? "");
+      // ✅ Hydrate wind speed with 3-digit format if value exists
+      const savedKt = plan.env.surfaceWindKt;
+      if (savedKt !== "" && savedKt != null && Number.isFinite(Number(savedKt))) {
+        surfaceWindKtEl.value = String(Math.round(Number(savedKt))).padStart(3, "0");
+      } else {
+        surfaceWindKtEl.value = "";
+      }
+
       if (Number(plan.env.surfaceWindKt) === 0) {
         surfaceWindFromEl.value = "Winds calm";
         surfaceWindFromEl.disabled = true;
