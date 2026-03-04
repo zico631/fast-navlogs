@@ -408,6 +408,9 @@
         String(cp3||"").trim().toUpperCase() === "TOC" &&
         String(displayLegs?.[0]?.to||"").trim().toUpperCase() === "TOC";
       const L = tocAfterFirstFix ? 1 : 0; // legOffset
+      const tc1 = tocAfterFirstFix
+        ? Number(displayLegs?.[0]?.tcDeg ?? NaN)
+        : Number(env.firstFixTcDeg ?? displayLegs?.[0]?.tcDeg ?? NaN);
 
       // Checkpoint labels
       for(let i=0;i<6;i++){
@@ -428,7 +431,8 @@
 
       const tcRow1=Number((env.firstFixTcDeg!=null&&!Number.isNaN(Number(env.firstFixTcDeg)))?env.firstFixTcDeg:displayLegs?.[0]?.tcDeg);
       const tcRow1Txt=Number.isFinite(tcRow1)?formatDeg3(tcRow1):"";
-      setP1(153,tcRow1Txt); setP1(154,tcRow1Txt);
+      setP1(153,tcRow1Txt);
+      setP1(154, tocAfterFirstFix ? (Number.isFinite(tc1) ? formatDeg3(tc1) : "") : tcRow1Txt);
 
       // TC boxes for data rows — offset by L
       for(let i=0;i<6;i++){
@@ -504,9 +508,7 @@
         row2Dist=tocBefore?Math.max(0,fixDist-tocDist):Math.max(0,tocDist-fixDist);
       setP1(90,Number.isFinite(row2Dist)?fmtNum(row2Dist,1):"");
 
-      const tc1 = tocAfterFirstFix
-        ? Number(displayLegs?.[0]?.tcDeg ?? NaN)
-        : Number(env.firstFixTcDeg ?? displayLegs?.[0]?.tcDeg ?? NaN);
+
       let tas2,wf2,wk2;
       if(tocBefore){tas2=Number(env.cruiseTasKt);wf2=Number(env.windFromDeg);wk2=Number(env.windKt);}
       else{
@@ -622,4 +624,5 @@
   </script>
 </body>
 </html>
+
 
