@@ -504,7 +504,9 @@
         row2Dist=tocBefore?Math.max(0,fixDist-tocDist):Math.max(0,tocDist-fixDist);
       setP1(90,Number.isFinite(row2Dist)?fmtNum(row2Dist,1):"");
 
-      const tc1=Number(env.firstFixTcDeg??displayLegs?.[0]?.tcDeg??NaN);
+      const tc1 = tocAfterFirstFix
+        ? Number(displayLegs?.[0]?.tcDeg ?? NaN)
+        : Number(env.firstFixTcDeg ?? displayLegs?.[0]?.tcDeg ?? NaN);
       let tas2,wf2,wk2;
       if(tocBefore){tas2=Number(env.cruiseTasKt);wf2=Number(env.windFromDeg);wk2=Number(env.windKt);}
       else{
@@ -620,3 +622,4 @@
   </script>
 </body>
 </html>
+
