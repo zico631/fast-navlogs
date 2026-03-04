@@ -861,7 +861,7 @@ function tempAtAltFromSurfaceAnd6000(env, altFt) {
 
   const cp3Txt = String(cp3 || "").trim().toUpperCase();
   const firstTo = String(displayLegs?.[0]?.to || "").trim().toUpperCase();
-  const skipFirst = (cp3Txt === "TOC" && firstTo === "TOC") ? 1 : 0;
+  const skipFirst = (tocBefore && cp3Txt === "TOC" && firstTo === "TOC") ? 1 : 0;
 
   for (let i = 0; i < 6; i++) {
     const boxId = 164 + i;
@@ -1357,4 +1357,5 @@ function tempAtAltFromSurfaceAnd6000(env, altFt) {
   </script>
 </body>
 </html>
+
 
