@@ -256,59 +256,64 @@
     //   [0] = firstFix → TOC  (already rendered by hardcoded row2 in autopopulate)
     //   [1] = TOC → nextFix   (rendered in the data-rows loop)
     // ─────────────────────────────────────────────────────────────────────────
-    function buildDisplayLegs(plan) {
-      const legs=Array.isArray(plan?.legs)?plan.legs:[];
-      const env=plan?.env||{};
-      const out=legs.map((l,idx)=>({...l,_origIndex:idx}));
-      const tocBefore=!!env.tocBeforeFirstFix;
-      const fixDist=Number(env.firstFixDistNm);
-      const tocDist=Number(env.climbDistWindNm);
+function buildDisplayLegs(plan) {
+  const legs=Array.isArray(plan?.legs)?plan.legs:[];
+  const env=plan?.env||{};
+  const out=legs.map((l,idx)=>({...l,_origIndex:idx}));
+  const tocBefore=!!env.tocBeforeFirstFix;
+  const fixDist=Number(env.firstFixDistNm);
+  const tocDist=Number(env.climbDistWindNm);
 
-      if(!tocBefore&&out.length>0&&Number.isFinite(fixDist)&&Number.isFinite(tocDist)&&tocDist>fixDist){
-        const tocFromFirstFixNm=tocDist-fixDist;
-        if(Number.isFinite(tocFromFirstFixNm)&&tocFromFirstFixNm>0){
-          let cum=0;
-          for(let i=0;i<out.length;i++){
-            const d=Number(out[i]?.distNm);
-            if(!Number.isFinite(d)||d<=0)continue;
-            if(cum+d>=tocFromFirstFixNm){
-              const a=tocFromFirstFixNm-cum, b=d-a;
-              const orig={...out[i]};
-              out.splice(i,1,
-                {...orig,to:"TOC",distNm:a,_phase:"climb"},
-                {...orig,from:"TOC",distNm:b,_phase:"cruise"}
-              );
-              for(let k=i+1;k<out.length;k++)out[k]._phase=out[k]._phase||"cruise";
-              break;
-            }
-            cum+=d;
-          }
-        }
-      }
+  let tocSplitHappened = false;
 
-      if(tocBefore)out.forEach(l=>{l._phase=l._phase||"cruise";});
-
-      if(env.tod?.ok){
-        const li=Number(env.tod.legIndex),a=Number(env.tod.distFromLegStart),b=Number(env.tod.distFromLegEnd);
-        if(Number.isFinite(li)&&li>=0&&li<out.length&&Number.isFinite(a)&&Number.isFinite(b)&&a>0&&b>0){
-          const orig={...out[li]};
-          out.splice(li,1,
-            {...orig,to:"TOD",distNm:a,_phase:orig._phase||"cruise"},
-            {...orig,from:"TOD",distNm:b,_phase:orig._phase||"cruise"}
+  if(!tocBefore&&out.length>0&&Number.isFinite(fixDist)&&Number.isFinite(tocDist)&&tocDist>fixDist){
+    const tocFromFirstFixNm=tocDist-fixDist;
+    if(Number.isFinite(tocFromFirstFixNm)&&tocFromFirstFixNm>0){
+      let cum=0;
+      for(let i=0;i<out.length;i++){
+        const d=Number(out[i]?.distNm);
+        if(!Number.isFinite(d)||d<=0)continue;
+        if(cum+d>=tocFromFirstFixNm){
+          const a=tocFromFirstFixNm-cum, b=d-a;
+          const orig={...out[i]};
+          out.splice(i,1,
+            {...orig,to:"TOC",distNm:a,_phase:"climb"},
+            {...orig,from:"TOC",distNm:b,_phase:"cruise"}
           );
+          tocSplitHappened = true;
+          for(let k=i+1;k<out.length;k++)out[k]._phase=out[k]._phase||"cruise";
+          break;
         }
+        cum+=d;
       }
-
-      if(tocBefore){
-        out.forEach(l=>{l._phase="cruise";});
-      }else{
-        const idx=out.findIndex(l=>String(l?.to||"").trim().toUpperCase()==="TOC");
-        if(idx>=0)out.forEach((l,i)=>{l._phase=i<=idx?"climb":"cruise";});
-        else out.forEach(l=>{l._phase=l._phase||"cruise";});
-      }
-
-      return out;
     }
+  }
+
+  if(tocBefore)out.forEach(l=>{l._phase=l._phase||"cruise";});
+
+  if(env.tod?.ok){
+    const tocSplitOffset = tocSplitHappened ? 1 : 0;
+    const li=Number(env.tod.legIndex) + tocSplitOffset;
+    const a=Number(env.tod.distFromLegStart),b=Number(env.tod.distFromLegEnd);
+    if(Number.isFinite(li)&&li>=0&&li<out.length&&Number.isFinite(a)&&Number.isFinite(b)&&a>0&&b>0){
+      const orig={...out[li]};
+      out.splice(li,1,
+        {...orig,to:"TOD",distNm:a,_phase:orig._phase||"cruise"},
+        {...orig,from:"TOD",distNm:b,_phase:orig._phase||"cruise"}
+      );
+    }
+  }
+
+  if(tocBefore){
+    out.forEach(l=>{l._phase="cruise";});
+  }else{
+    const idx=out.findIndex(l=>String(l?.to||"").trim().toUpperCase()==="TOC");
+    if(idx>=0)out.forEach((l,i)=>{l._phase=i<=idx?"climb":"cruise";});
+    else out.forEach(l=>{l._phase=l._phase||"cruise";});
+  }
+
+  return out;
+}
 
     // ─── autopopulate ─────────────────────────────────────────────────────────
     function autopopulate() {
@@ -624,5 +629,6 @@
   </script>
 </body>
 </html>
+
 
 
