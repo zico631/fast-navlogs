@@ -979,6 +979,123 @@
 
   const legsBody = document.getElementById("legsBody");
 
+  // =====================================================
+// ROUTE LEGS (RESTORED)  ✅ this was removed in your rewrite
+// =====================================================
+
+const addLegBtn = document.getElementById("addLegBtn");
+
+// Trip totals (route legs only)
+function computeTripTotals(plan) {
+  if (!plan?.env) plan.env = {};
+  if (!Array.isArray(plan?.legs)) plan.legs = [];
+
+  const dists = plan.legs
+    .map(l => Number(l?.distNm))
+    .filter(d => Number.isFinite(d) && d > 0);
+
+  if (dists.length === 0) {
+    plan.env.tripTotalNm = null;
+    return { ok:false, reason:"no leg distances", tripTotalNm:null };
+  }
+
+  const tripTotal = dists.reduce((a,b)=>a+b, 0);
+  plan.env.tripTotalNm = tripTotal;
+  return { ok:true, tripTotalNm: tripTotal };
+}
+
+function renderLegs() {
+  if (!legsBody) {
+    console.warn("❌ legsBody not found");
+    return;
+  }
+
+  legsBody.innerHTML = "";
+  if (!Array.isArray(plan.legs)) plan.legs = [];
+
+  plan.legs.forEach((leg, i) => {
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td><input value="${leg.from ?? ""}" class="from" data-index="${i}"></td>
+      <td><input value="${leg.to ?? ""}" class="to"></td>
+      <td><input type="text" inputmode="numeric" maxlength="3"
+                 value="${formatDeg3(leg.tcDeg ?? 0)}" class="tc"></td>
+      <td><input type="number" step="0.1"
+                 value="${Number.isFinite(Number(leg.distNm)) ? Number(leg.distNm) : ""}" class="dist"></td>
+      <td><button data-i="${i}" type="button">X</button></td>
+    `;
+
+    const tcEl = tr.querySelector(".tc");
+    setDirInputBehavior(tcEl);
+
+    // FROM
+    tr.querySelector(".from").addEventListener("input", e => {
+      const cleaned = String(e.target.value || "").replace(/^\d+\.\s*/, "");
+      plan.legs[i].from = cleaned;
+      saveplan(plan);
+    });
+
+    // TO
+    tr.querySelector(".to").addEventListener("input", e => {
+      plan.legs[i].to = String(e.target.value || "");
+      saveplan(plan);
+      updateTodPreview();
+    });
+
+    // TC
+    tr.querySelector(".tc").addEventListener("input", e => {
+      plan.legs[i].tcDeg = parseDegText(e.target.value);
+      saveplan(plan);
+      updateTodPreview();
+    });
+
+    // DIST
+    tr.querySelector(".dist").addEventListener("input", e => {
+      const v = e.target.valueAsNumber;
+      plan.legs[i].distNm = Number.isFinite(v) ? v : NaN;
+
+      computeTripTotals(plan);
+      saveplan(plan);
+      updateTodPreview();
+    });
+
+    // DELETE
+    tr.querySelector("button").addEventListener("click", e => {
+      const idx = Number(e.target.dataset.i);
+      plan.legs.splice(idx, 1);
+
+      computeTripTotals(plan);
+      saveplan(plan);
+
+      renderLegs();
+      updateTodPreview();
+    });
+
+    legsBody.appendChild(tr);
+  });
+}
+
+// Add Leg button (this was missing)
+if (!addLegBtn) {
+  console.warn("❌ addLegBtn not found");
+} else {
+  addLegBtn.addEventListener("click", () => {
+    console.log("✅ Add Leg handler running");
+
+    if (!Array.isArray(plan.legs)) plan.legs = [];
+    plan.legs.push({ from:"", to:"", tcDeg:0, distNm:NaN, wcaDeg:0 });
+
+    computeTripTotals(plan);
+    saveplan(plan);
+
+    renderLegs();
+    updateTodPreview();
+  });
+
+  console.log("✅ addLegBtn wired");
+}
+
   setDirInputBehavior(surfaceWindFromEl);
   setDirInputBehavior(firstFixTcEl);
 
@@ -1748,7 +1865,9 @@
   // INIT
   // -----------------------------
   hydrateInputsFromPlan();
+  computeTripTotals(plan);
   saveplan(plan);
+  renderLegs();
   recalcTOCOrderAndPreview();
   updateTodPreview();
 </script>
@@ -1756,6 +1875,7 @@
 </body>
 
 </html>
+
 
 
 
