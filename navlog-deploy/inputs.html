@@ -1541,12 +1541,125 @@
       }
     });
 
-    // -----------------------------
-    // Minimal TOD preview (placeholder)
+// -----------------------------
+    // TOD preview (full implementation)
     // -----------------------------
     function clearTodEnv() {
       plan.env.tod = null;
       savePlan(plan);
+    }
+
+    function findTodInRoute(legs, todNm) {
+      let cumFromDest = 0;
+      for (let i = legs.length - 1; i >= 0; i--) {
+        const d = Number(legs[i]?.distNm);
+        if (!Number.isFinite(d) || d <= 0) continue;
+        if (cumFromDest + d >= todNm) {
+          const distFromLegEnd = todNm - cumFromDest;
+          const distFromLegStart = d - distFromLegEnd;
+          return { ok: true, legIndex: i, distFromLegStart, distFromLegEnd, legDist: d };
+        }
+        cumFromDest += d;
+      }
+      return { ok: false, beforeDeparture: true };
+    }
+
+    function updateTodPreview() {
+      if (!todPreviewPillEl) return;
+
+      const dest = String(plan.env.destIcao || "").trim().toUpperCase();
+      const tpaFt = Number(plan.env.destTpaFt);
+      const cruiseAltFt = Number(plan.env.cruiseAltFt);
+
+      if (!dest) {
+        todPreviewPillEl.textContent = "TOD: enter Destination ICAO to enable.";
+        todPreviewPillEl.className = "pill warn";
+        clearTodEnv(); return;
+      }
+      if (!Number.isFinite(tpaFt)) {
+        todPreviewPillEl.textContent = `TOD: enter Destination TPA for ${dest}.`;
+        todPreviewPillEl.className = "pill warn";
+        clearTodEnv(); return;
+      }
+      if (!Number.isFinite(cruiseAltFt)) {
+        todPreviewPillEl.textContent = "TOD: enter Cruise Altitude to enable.";
+        todPreviewPillEl.className = "pill warn";
+        clearTodEnv(); return;
+      }
+
+      const legs = Array.isArray(plan.legs) ? plan.legs : [];
+      if (legs.length === 0) {
+        todPreviewPillEl.textContent = "TOD: add route legs to enable.";
+        todPreviewPillEl.className = "pill warn";
+        clearTodEnv(); return;
+      }
+
+      const lastLeg = legs[legs.length - 1];
+      const lastTo = String(lastLeg?.to || "").trim().toUpperCase();
+      if (lastTo !== dest) {
+        todPreviewPillEl.textContent = `TOD: pending — final leg TO must be ${dest} (currently ${lastTo || "—"}).`;
+        todPreviewPillEl.className = "pill warn";
+        clearTodEnv(); return;
+      }
+
+      const allHaveDist = legs.every(l => Number.isFinite(Number(l?.distNm)) && Number(l?.distNm) > 0);
+      if (!allHaveDist) {
+        todPreviewPillEl.textContent = "TOD: pending — enter all leg distances.";
+        todPreviewPillEl.className = "pill warn";
+        clearTodEnv(); return;
+      }
+
+      const altToLoseFt = cruiseAltFt - tpaFt;
+      if (!Number.isFinite(altToLoseFt) || altToLoseFt <= 0) {
+        todPreviewPillEl.textContent = `TOD: cruise altitude must be above TPA for ${dest}.`;
+        todPreviewPillEl.className = "pill warn";
+        clearTodEnv(); return;
+      }
+
+      const tod = computetodprofile({
+        tcDeg: Number(lastLeg?.tcDeg),
+        altLeavingFt: cruiseAltFt,
+        altTargetFt: tpaFt,
+        windProfilePts: null,
+        tasKt: 90,
+        vsFpm: 500
+      });
+
+      if (!tod?.ok || !Number.isFinite(tod?.todNm)) {
+        todPreviewPillEl.textContent = "TOD: could not compute (check inputs).";
+        todPreviewPillEl.className = "pill warn";
+        clearTodEnv(); return;
+      }
+
+      const where = findTodInRoute(legs, tod.todNm);
+      if (!where.ok) {
+        todPreviewPillEl.textContent = `TOD: route too short for descent to ${dest}.`;
+        todPreviewPillEl.className = "pill warn";
+        clearTodEnv(); return;
+      }
+
+      const leg = legs[where.legIndex];
+      const from = String(leg?.from || `Leg ${where.legIndex + 1}`).trim().toUpperCase();
+      const to = String(leg?.to || "").trim().toUpperCase();
+
+      plan.env.tod = {
+        ok: true,
+        destIcao: dest,
+        tpaFt,
+        cruiseAltFt,
+        todNm: Number(tod.todNm),
+        legIndex: Number(where.legIndex),
+        distFromLegStart: Number(where.distFromLegStart),
+        distFromLegEnd: Number(where.distFromLegEnd),
+        from,
+        to
+      };
+      savePlan(plan);
+
+      todPreviewPillEl.textContent =
+        `TOD: begin descent ~${tod.todNm.toFixed(1)} NM before ${dest} ` +
+        `(in leg ${from}→${to}, ~${where.distFromLegStart.toFixed(1)} NM after ${from}).`;
+      todPreviewPillEl.className = "pill ok";
     }
 
     function updateTodPreview() {
@@ -1791,4 +1904,5 @@
   </script>
 </body>
 </html>
+
 
