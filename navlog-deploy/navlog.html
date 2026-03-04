@@ -1,1151 +1,285 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Navlog Prototype – Nav Log</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    body { font-family: Arial, Helvetica, sans-serif; margin: 24px; }
-    .bar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
-    button { padding:8px 14px; border-radius:8px; border:1px solid #999; background:#f2f2f2; cursor: pointer; }
-    button:hover { background: #e6e6e6; }
-    .meta { font-size:13px; color:#555; }
+<meta charset="utf-8" />
+<title>Navlog Prototype – Nav Log</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    .wrap { display:flex; gap:16px; align-items:flex-start; }
-    .panel {
-      width: 380px;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      padding: 12px;
-      background: #fafafa;
-    }
-    textarea {
-      width: 100%;
-      height: 120px;
-      resize: vertical;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      font-size: 12px;
-      padding: 8px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-    }
-    .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
-    .small { font-size: 12px; color:#444; }
-    .list {
-      margin-top: 10px;
-      max-height: 260px;
-      overflow:auto;
-      border: 1px solid #e3e3e3;
-      border-radius: 8px;
-      background: white;
-      padding: 8px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      font-size: 12px;
-      white-space: pre;
-    }
-    label { font-size: 12px; color:#333; display:flex; gap:8px; align-items:center; margin-top:8px; }
+<style>
 
-    #pages { display:flex; flex-direction:column; gap:18px; }
-    .page {
-      width: 11in;
-      height: 8.5in;
-      position: relative;
-      background-image: url("navlog_form.png");
-      background-size: contain;
-      background-repeat: no-repeat;
-      background-position: center;
-      border: 1px solid #ddd;
-      overflow: hidden;
-    }
+body { font-family: Arial, Helvetica, sans-serif; margin:24px; }
 
-    .mappedBox{
-      position: absolute;
-      pointer-events: none;
-      z-index: 5000;
-      box-sizing: border-box;
+.bar{
+display:flex;
+gap:12px;
+align-items:center;
+flex-wrap:wrap;
+margin-bottom:12px;
+}
 
-      display: flex;
-      align-items: flex-start;
-      justify-content: flex-start;
-      padding: 2px 3px;
+button{
+padding:8px 14px;
+border-radius:8px;
+border:1px solid #999;
+background:#f2f2f2;
+cursor:pointer;
+}
 
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 12px;
+button:hover{ background:#e6e6e6; }
 
-      /* visible while debugging */
-      color: black;
-      font-weight: 400;
-      text-shadow: none;
+.meta{ font-size:13px;color:#555; }
 
-      background: transparent;
-      outline: none;
-    }
+.wrap{ display:flex; gap:16px; align-items:flex-start; }
 
-    .drawRect {
-      position: absolute;
-      border: 2px solid rgba(0, 140, 255, 0.95);
-      background: rgba(0, 140, 255, 0.12);
-      border-radius: 4px;
-      z-index: 9999;
-      pointer-events: none;
-      box-sizing: border-box;
-    }
+.panel{
+width:380px;
+border:1px solid #ddd;
+border-radius:10px;
+padding:12px;
+background:#fafafa;
+}
 
-    #coordBox{
-      position: fixed;
-      bottom: 10px;
-      left: 10px;
-      background: black;
-      color: lime;
-      padding: 6px 10px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      font-size: 14px;
-      z-index: 99999;
-      border-radius: 6px;
-      opacity: 0.92;
-      white-space: pre;
-      user-select: text;
-    }
+#pages{
+display:flex;
+flex-direction:column;
+gap:18px;
+}
 
-    @media print {
-      .bar, .panel, #coordBox { display:none; }
-      body { margin:0; }
-      .page { border:none; page-break-after:always; }
-      #pages { gap:0; }
-      .drawRect { display:none; }
-      .mappedBox { outline: none; background: transparent; color: transparent; text-shadow:none; }
-    }
+.page{
+width:11in;
+height:8.5in;
+position:relative;
+background-image:url("navlog_form.png");
+background-size:contain;
+background-repeat:no-repeat;
+background-position:center;
+border:1px solid #ddd;
+overflow:hidden;
+}
 
-    /* =========================
-       NAVLOG RENDER MODE (default)
-       ========================= */
-    body.renderOnly .panel,
-    body.renderOnly .meta,
-    body.renderOnly #coordBox,
-    body.renderOnly .drawRect {
-      display: none !important;
-    }
-    body.renderOnly .wrap { gap: 0; }
-    body.renderOnly .page { margin: 0 auto; }
-  </style>
+.mappedBox{
+position:absolute;
+pointer-events:none;
+z-index:5000;
+box-sizing:border-box;
+display:flex;
+align-items:flex-start;
+justify-content:flex-start;
+padding:2px 3px;
+font-family:Arial, Helvetica, sans-serif;
+font-size:12px;
+color:black;
+background:transparent;
+}
+
+</style>
 </head>
 
 <body>
-  <div class="bar">
-    <button type="button" id="backBtn">← Back to Inputs</button>
-    <button type="button" onclick="window.print()">Print</button>
 
-    <label style="display:flex;align-items:center;gap:8px">
-      <input type="checkbox" id="toggleTools">
-      Show mapping tools
-    </label>
+<div class="bar">
 
-    <span class="meta">Navlog render page (auto-populates). Toggle tools only if you need remapping.</span>
-  </div>
+<button id="backBtn">← Back to Inputs</button>
+<button onclick="window.print()">Print</button>
 
-  <div class="wrap">
-    <div class="panel">
-      <div class="small">Mapping tools (optional). Turn on “Show mapping tools” to use these.</div>
+<span class="meta">
+Navlog render page (auto-populates)
+</span>
 
-      <div class="row">
-        <button id="copyHudBtn" type="button">Copy HUD</button>
-        <button id="pasteHudBtn" type="button">Paste HUD → Input</button>
-      </div>
+</div>
 
-      <label>
-        <input type="checkbox" id="autoCopy" />
-        Auto-copy HUD after each drag
-      </label>
+<div id="pages"></div>
 
-      <textarea id="coordInput" placeholder="Paste TL/TR/BL/BR here..."></textarea>
+<script type="module">
 
-      <div class="row">
-        <button id="addBtn" type="button">Add Box</button>
-        <button id="undoBtn" type="button">Undo Last</button>
-        <button id="clearBtn" type="button">Clear All</button>
-        <button id="copyBtn" type="button">Copy Boxes JSON</button>
-      </div>
+import { loadPlan } from "./js/plan/store.js";
+import { BOXES } from "./js/navlog/boxmap.js";
 
-      <div class="small" style="margin-top:10px;">Saved boxes:</div>
-      <div id="boxList" class="list"></div>
-    </div>
+const pagesEl = document.getElementById("pages")
 
-    <div id="pages"></div>
-  </div>
+const PAGES = []
+const PAGE_COUNT = 2
 
-  <script type="module">
-    import { loadPlan, savePlan, STORAGE_KEY } from "./js/plan/store.js";
+for(let p=0;p<PAGE_COUNT;p++){
 
-    console.log("NAVLOG store key =", STORAGE_KEY);
-    console.log("NAVLOG raw =", localStorage.getItem(STORAGE_KEY));
-    console.log("NAVLOG loadPlan =", loadPlan());
-    
-    import { computeTodProfile } from "./js/perf/perfengine.js";
-    import { BOXES } from "./js/navlog/boxmap.js";
+const pg=document.createElement("div")
+pg.className="page"
+pg.dataset.page=String(p)
 
-    // ✅ DevTools access (module-safe)
-    window.__planStore = { loadPlan, savePlan };
-    
+pagesEl.appendChild(pg)
 
-    // Back button
-    document.getElementById("backBtn").addEventListener("click", () => {
-      window.location.href = "inputs.html";
-    });
-
-    // Tools ON by default
-    document.body.classList.remove("renderOnly");
-    const toggle = document.getElementById("toggleTools");
-    toggle.checked = true;
-
-    toggle.addEventListener("change", () => {
-      if (toggle.checked) document.body.classList.remove("renderOnly");
-      else document.body.classList.add("renderOnly");
-    });
-
-    const pct = (v) => (v * 100).toFixed(4) + "%";
-
-    const ensureHud = () => {
-      let box = document.getElementById("coordBox");
-      if (!box) {
-        box = document.createElement("div");
-        box.id = "coordBox";
-        document.body.appendChild(box);
-      }
-      return box;
-    };
-    const setHud = (text) => { ensureHud().textContent = text; };
-    const getHud = () => ensureHud().textContent || "";
-
-    async function copyText(text) {
-      if (!text) return false;
-      try {
-        await navigator.clipboard.writeText(text);
-        return true;
-      } catch {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        ta.remove();
-        return true;
-      }
-    }
-
-    // Canvas pages (single page)
-    const pagesEl = document.getElementById("pages");
-
-    const PAGES = [];
-    const PAGE_COUNT = 2;
-
-    for (let p = 0; p < PAGE_COUNT; p++) {
-      const pg = document.createElement("div");
-      pg.className = "page";
-      pg.dataset.page = String(p);
-      pagesEl.appendChild(pg);
-      PAGES.push(pg);
-    }
-
-    const boxes = BOXES;
-
-    let ACTIVE_PAGE_INDEX = 0;
-
-    function drawAllBoxes() {
-      for (const pageEl of PAGES) {
-        pageEl.querySelectorAll(".mappedBox").forEach(el => el.remove());
-
-        const curPage = Number(pageEl.dataset.page);
-
-        for (const b of boxes) {
-          const bPage = Number.isFinite(Number(b.page)) ? Number(b.page) : 0;
-          if (bPage !== curPage) continue;
-
-          const d = document.createElement("div");
-          d.className = "mappedBox";
-          if (b.id) d.dataset.box = String(b.id).padStart(3, "0");
-
-          d.style.left = pct(b.left);
-          d.style.top = pct(b.top);
-          d.style.width = pct(b.right - b.left);
-          d.style.height = pct(b.bottom - b.top);
-
-          const silentBoxes = new Set([
-            "073","074","075","076","077","078","079","080",
-            "081","082","083","084","085","086","087","088"
-          ]);
-
-          d.textContent = "";
-          pageEl.appendChild(d);
-        }
-      }
-
-      // keep boxList display (unchanged)
-      const list = boxes.map((b, i) => {
-        const tag = b.id ? String(b.id).padStart(3, "0") : String(i+1).padStart(3,"0");
-        return `${tag}: left=${b.left.toFixed(4)} top=${b.top.toFixed(4)} right=${b.right.toFixed(4)} bottom=${b.bottom.toFixed(4)}`;
-      }).join("\n");
-
-      document.getElementById("boxList").textContent = list || "(none yet)";
-    }
-
-    function parseMostRecentTLTRBLBR(text) {
-      const re = /TL:\s*x\s*=\s*([0-9]*\.?[0-9]+)\s*y\s*=\s*([0-9]*\.?[0-9]+)[\s\S]*?TR:\s*x\s*=\s*([0-9]*\.?[0-9]+)\s*y\s*=\s*([0-9]*\.?[0-9]+)[\s\S]*?BL:\s*x\s*=\s*([0-9]*\.?[0-9]+)\s*y\s*=\s*([0-9]*\.?[0-9]+)[\s\S]*?BR:\s*x\s*=\s*([0-9]*\.?[0-9]+)\s*y\s*=\s*([0-9]*\.?[0-9]+)/gi;
-
-      let m, last = null;
-      while ((m = re.exec(text)) !== null) last = m;
-      if (!last) return null;
-
-      const xs = [Number(last[1]), Number(last[3]), Number(last[5]), Number(last[7])];
-      const ys = [Number(last[2]), Number(last[4]), Number(last[6]), Number(last[8])];
-
-      const left = Math.min(...xs);
-      const right = Math.max(...xs);
-      const top = Math.min(...ys);
-      const bottom = Math.max(...ys);
-
-      if (![left,right,top,bottom].every(n => Number.isFinite(n))) return null;
-      if (right <= left || bottom <= top) return null;
-
-      return { left, top, right, bottom };
-    }
-
-    PAGES.forEach((pageEl, idx) => {
-      pageEl.addEventListener("click", (e) => {
-        ACTIVE_PAGE_INDEX = idx;
-
-        const r = pageEl.getBoundingClientRect();
-        const xPct = (e.clientX - r.left) / r.width;
-        const yPct = (e.clientY - r.top) / r.height;
-
-        setHud(`PAGE=${idx}\nx=${xPct.toFixed(4)}  y=${yPct.toFixed(4)}`);
-      });
-    });
-
-    // Drag draw (enable on every page)
-    PAGES.forEach((pageEl, idx) => {
-      (function enableDragDrawBox(pageEl, idx) {
-        let rectEl = null;
-        let dragging = false;
-        let startX = 0, startY = 0;
-
-        function pctFromEvent(e) {
-          const r = pageEl.getBoundingClientRect();
-          const x = (e.clientX - r.left) / r.width;
-          const y = (e.clientY - r.top) / r.height;
-          return { x, y };
-        }
-
-        function setRect(left, top, right, bottom) {
-          const l = Math.min(left, right);
-          const t = Math.min(top, bottom);
-          const r = Math.max(left, right);
-          const b = Math.max(top, bottom);
-
-          rectEl.style.left = pct(l);
-          rectEl.style.top = pct(t);
-          rectEl.style.width = pct(r - l);
-          rectEl.style.height = pct(b - t);
-
-          setHud(
-            `PAGE=${idx}\n` +
-            `TL: x=${l.toFixed(4)} y=${t.toFixed(4)}\n` +
-            `TR: x=${r.toFixed(4)} y=${t.toFixed(4)}\n` +
-            `BL: x=${l.toFixed(4)} y=${b.toFixed(4)}\n` +
-            `BR: x=${r.toFixed(4)} y=${b.toFixed(4)}`
-          );
-        }
-
-        pageEl.addEventListener("pointerdown", (e) => {
-          if (e.button !== 0) return;
-          ACTIVE_PAGE_INDEX = idx;
-
-          if (rectEl) { rectEl.remove(); rectEl = null; }
-
-          dragging = true;
-          pageEl.setPointerCapture(e.pointerId);
-
-          const p = pctFromEvent(e);
-          startX = p.x;
-          startY = p.y;
-
-          rectEl = document.createElement("div");
-          rectEl.className = "drawRect";
-          pageEl.appendChild(rectEl);
-
-          setRect(startX, startY, startX + 0.0001, startY + 0.0001);
-          e.preventDefault();
-        });
-
-        pageEl.addEventListener("pointermove", (e) => {
-          if (!dragging || !rectEl) return;
-          const p = pctFromEvent(e);
-          setRect(startX, startY, p.x, p.y);
-        });
-
-        pageEl.addEventListener("pointerup", async (e) => {
-          if (!dragging) return;
-          dragging = false;
-          try { pageEl.releasePointerCapture(e.pointerId); } catch {}
-
-          if (document.getElementById("autoCopy").checked) {
-            await copyText(getHud());
-          }
-        });
-      })(pageEl, idx);
-    });
-
-    // Buttons
-    document.getElementById("copyHudBtn").addEventListener("click", async () => {
-      const ok = await copyText(getHud());
-      if (!ok) alert("Nothing in HUD yet. Drag a rectangle first.");
-    });
-
-    document.getElementById("pasteHudBtn").addEventListener("click", () => {
-      const hud = getHud();
-      if (!hud) return alert("HUD is empty. Drag a rectangle first.");
-      document.getElementById("coordInput").value = hud;
-    });
-
-    document.getElementById("addBtn").addEventListener("click", () => {
-      const inputEl = document.getElementById("coordInput");
-      const txt = inputEl.value.trim();
-
-      const box = parseMostRecentTLTRBLBR(txt);
-      if (!box) {
-        alert("Couldn't parse TL/TR/BL/BR. Make sure the text includes TL:, TR:, BL:, BR: lines.");
-        return;
-      }
-
-      boxes.push({ ...box, page: ACTIVE_PAGE_INDEX });
-      drawAllBoxes();
-      inputEl.value = "";
-      autopopulate();
-    });
-
-    document.getElementById("undoBtn").addEventListener("click", () => {
-      boxes.pop();
-      drawAllBoxes();
-      autopopulate();
-    });
-
-    document.getElementById("clearBtn").addEventListener("click", () => {
-      boxes.length = 0;
-      drawAllBoxes();
-    });
-
-    document.getElementById("copyBtn").addEventListener("click", async () => {
-      const json = JSON.stringify(boxes, null, 2);
-      await copyText(json);
-      alert("Copied boxes JSON to clipboard.");
-    });
-
-  function getBoxOnPage(pageIndex, id) {
-  const key = String(id).padStart(3, "0");
-  const pageEl = PAGES?.[pageIndex];
-  if (!pageEl) return null;
-  return pageEl.querySelector(`[data-box="${key}"]`);
-}
-
-  function setBoxTextOnEl(el, id, text) {
-      if (!el) return;
-
-      // boxes that should stay completely quiet
-      const silentBoxes = new Set([73, 81]);
-
-      if (silentBoxes.has(Number(id))) {
-        el.textContent = "";
-        el.style.color = "";
-        return;
-  }
-
-  el.textContent = text ?? "";
-
-  const nId = Number(id);
-
-  // ✅ TOD header box (227): left-to-right and allow newline
-  if (nId === 227) {
-  el.style.whiteSpace = "pre-wrap";   // ✅ respects \n and wraps
-  el.style.fontSize = "10px";
-  el.style.fontWeight = "500";
-  el.style.textAlign = "left";
-  el.style.alignItems = "flex-start";
-  el.style.justifyContent = "flex-start";
-  el.style.lineHeight = "1.1";
-  el.style.padding = "2px 3px";
-}
-
-  // ✅ ETA boxes (121–128): tweak however you want
-  if (nId >= 121 && nId <= 128) {
-    el.style.fontSize = "11px";
-    el.style.fontWeight = "400";
-    el.style.padding = "0";
-    el.style.textAlign = "center";
-    el.style.alignItems = "center";
-    el.style.justifyContent = "center";
-    el.style.lineHeight = "1";
-    el.style.transform = "translateY(1px)";
-  }
-  // ✅ Fuel Remaining boxes (137–144): tweak however you want
-  else if (nId >= 137 && nId <= 144) {
-    el.style.fontSize = "11px";
-    el.style.fontWeight = "400";
-    el.style.padding = "0";
-    el.style.textAlign = "center";
-    el.style.alignItems = "center";
-    el.style.justifyContent = "center";
-    el.style.lineHeight = "1";
-    el.style.transform = "translateY(1px)";
-  }
-  else {
-    el.style.fontSize = "";
-    el.style.fontWeight = "";
-    el.style.padding = "";
-    el.style.textAlign = "";
-    el.style.alignItems = "";
-    el.style.justifyContent = "";
-    el.style.lineHeight = "";
-    el.style.transform = "";
-  }
-
+PAGES.push(pg)
 
 }
 
-// Page-aware writer
-function setP(pageIndex, id, text) {
-  const el = getBoxOnPage(pageIndex, id);
-  setBoxTextOnEl(el, id, text);
+function pct(v){
+return (v*100).toFixed(4)+"%"
 }
 
-// Convenience wrappers
-const setP1 = (id, text) => setP(0, id, text);
-const setP2 = (id, text) => setP(1, id, text);
+function drawAllBoxes(){
 
-// ✅ Backwards compatible (keeps ALL your existing code working)
-function getBox(id) { return getBoxOnPage(0, id); }
-function setBoxText(id, text) { return setP1(id, text); }
-// ✅ Expose helpers to DevTools console (because this is a module script)
-window.setP = setP;
-window.setP1 = setP1;
-window.setP2 = setP2;
-window.getBoxOnPage = getBoxOnPage;
+for(const pageEl of PAGES){
 
-    function fmtNum(n, decimals = 1) {
-      const x = Number(n);
-      if (!Number.isFinite(x)) return "";
-      return x.toFixed(decimals);
-    }
+pageEl.querySelectorAll(".mappedBox").forEach(el=>el.remove())
 
-    function norm360(deg) {
-      const d = ((Number(deg) % 360) + 360) % 360;
-      return Number.isFinite(d) ? d : 0;
-    }
+const curPage=Number(pageEl.dataset.page)
 
-    function formatDeg3(d) {
-      const n = Number(d);
-      if (!Number.isFinite(n)) return "";
-      return String(norm360(Math.round(n))).padStart(3, "0");
-    }
+for(const b of BOXES){
 
-    function norm180(deg) {
-      let d = ((Number(deg) % 360) + 360) % 360;
-      if (d > 180) d -= 360;
-      return d; // -180..+180
-    }
+const bPage=Number.isFinite(Number(b.page))?Number(b.page):0
 
-    function formatTAS(v) {
-      const n = Number(v);
-      if (!Number.isFinite(n)) return "";
-      return String(Math.round(n)).padStart(3, "0");
-    }
+if(bPage!==curPage) continue
 
-    function formatGPH(v) {
-      const n = Number(v);
-      if (!Number.isFinite(n)) return "";
-      return (Math.round(n * 10) / 10).toFixed(1);
-    }
+const d=document.createElement("div")
 
-    function parseHHMM(str) {
-      const s = String(str || "").trim();
-      const m = s.match(/^(\d{1,2}):(\d{2})$/);
-      if (!m) return null;
-      const hh = Number(m[1]), mm = Number(m[2]);
-      if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
-      if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
-      return hh * 60;
-    }
+d.className="mappedBox"
 
-    function formatHHMM(totalMinutes) {
-      if (!Number.isFinite(totalMinutes)) return "";
-      let m = Math.round(totalMinutes);
-      m = ((m % (24 * 60)) + (24 * 60)) % (24 * 60);
-      const hh = Math.floor(m / 60);
-      const mm = m % 60;
-      return String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
-    }
+if(b.id) d.dataset.box=String(b.id).padStart(3,"0")
 
-function isLegInClimb(i, plan) {
-  const env = plan?.env || {};
-  const legs = Array.isArray(plan?.legs) ? plan.legs : [];
+d.style.left=pct(b.left)
+d.style.top=pct(b.top)
+d.style.width=pct(b.right-b.left)
+d.style.height=pct(b.bottom-b.top)
 
-  // ✅ total POH climb time (this MUST come from inputs.html)
-  const climbTotalMin = Number(env.climbTimeMin);
+pageEl.appendChild(d)
 
-  // If we don't have POH climb time, fall back to "no climb"
-  if (!Number.isFinite(climbTotalMin) || climbTotalMin <= 0) return false;
-
-  // If TOC is before first fix, then all route legs are cruise legs
-  if (!!env.tocBeforeFirstFix) return false;
-
-  const fixDist = Number(env.firstFixDistNm);
-  const tocDist = Number(env.climbDistWindNm);
-
-  if (!Number.isFinite(fixDist) || fixDist < 0) return false;
-  if (!Number.isFinite(tocDist) || tocDist <= 0) return false;
-
-  // Portion of climb completed by the time you reach the first fix
-  const fracToFix = Math.max(0, Math.min(1, fixDist / tocDist));
-  const climbToFixMin = climbTotalMin * fracToFix;
-
-  // Remaining climb time available during legs (after first fix)
-  let climbRemainingMin = Math.max(0, climbTotalMin - climbToFixMin);
-
-  // Walk legs in order, burning climbRemainingMin until it hits 0
-  for (let k = 0; k < legs.length; k++) {
-    const dist = Number(legs[k]?.distNm ?? 0);
-    const tc   = Number(legs[k]?.tcDeg ?? NaN);
-    if (!Number.isFinite(dist) || dist <= 0 || !Number.isFinite(tc)) continue;
-
-    // Your climb TAS convention
-    const tas = 74;
-
-    // Midpoint distance-from-departure for wind sampling:
-    // dep->firstFix + prior legs + half of this leg
-    let distFromDep = fixDist;
-    for (let j = 0; j < k; j++) distFromDep += Number(legs[j]?.distNm ?? 0);
-    distFromDep += dist / 2;
-
-    const w = windAtClimbDistance(env, distFromDep);
-    const gs = computeGsKt(tc, tas, Number(w.windFrom), Number(w.windKt));
-
-    const legTimeMin =
-      (Number.isFinite(gs) && gs > 0) ? (dist / gs) * 60 : 0;
-
-    // If we're asking about THIS leg, it's a climb leg if climb time remains
-    if (k === i) return climbRemainingMin > 0;
-
-    // Otherwise consume time and continue
-    climbRemainingMin -= legTimeMin;
-    if (climbRemainingMin <= 0) return false;
-  }
-
-  return false;
 }
 
-    function tasForLeg(i, plan) {
-      if (isLegInClimb(i, plan)) return 74;
-      const cruise = Number(plan?.env?.cruiseTasKt);
-      return Number.isFinite(cruise) ? cruise : NaN;
-    }
-
-function windsForSegment({ kind, i, env, plan }) {
-  // Row 1 uses surface wind
-  if (kind === "row1") {
-    return {
-      windFrom: Number(env.surfaceWindFromDeg ?? 0),
-      windKt: Number(env.surfaceWindKt ?? 0)
-    };
-  }
-
-  // Row 2:
-  // - If TOC is before first fix => row 2 is cruise, use cruise wind (fallback to surface if missing)
-  // - Else row 2 is still climb, sample wind by distance
-  if (kind === "row2") {
-    if (!!env.tocBeforeFirstFix) {
-      const wf = Number.isFinite(Number(env.windFromDeg))
-        ? Number(env.windFromDeg)
-        : Number(env.surfaceWindFromDeg ?? 0);
-
-      const wk = Number.isFinite(Number(env.windKt))
-        ? Number(env.windKt)
-        : Number(env.surfaceWindKt ?? 0);
-
-      return { windFrom: wf, windKt: wk };
-    } else {
-      const distStart = Number(env.firstFixDistNm);
-      const distMid = Number.isFinite(distStart)
-        ? distStart + (Number(env.row2DistNm ?? 0) / 2)
-        : distStart;
-
-      const w = windAtClimbDistance(env, distMid);
-      return { windFrom: Number(w.windFrom), windKt: Number(w.windKt) };
-    }
-  }
-
-  // Rows 3+:
-  // - If leg is in climb, use interpolated avg-alt wind
-  // - Else cruise wind (fallback to surface if missing)
-  if (kind === "row3plus") {
-    if (isLegInClimb(i, plan)) {
-      const avg = computeAvgAltEnvironment(env);
-      return {
-        windFrom: Number(avg?.windFromDeg ?? env.surfaceWindFromDeg ?? 0),
-        windKt: Number(avg?.windKt ?? env.surfaceWindKt ?? 0)
-      };
-    }
-
-    const wf = Number.isFinite(Number(env.windFromDeg))
-      ? Number(env.windFromDeg)
-      : Number(env.surfaceWindFromDeg ?? 0);
-
-    const wk = Number.isFinite(Number(env.windKt))
-      ? Number(env.windKt)
-      : Number(env.surfaceWindKt ?? 0);
-
-    return { windFrom: wf, windKt: wk };
-  }
-
-  // Default fallback
-  return {
-    windFrom: Number(env.surfaceWindFromDeg ?? 0),
-    windKt: Number(env.surfaceWindKt ?? 0)
-  };
-}
-    function computeGsKt(tcDeg, tasKt, windFromDeg, windKt) {
-      const tc = Number(tcDeg);
-      const tas = Number(tasKt);
-      const wf = Number(windFromDeg);
-      const wk = Number(windKt);
-
-      if (![tc, tas, wf, wk].every(Number.isFinite)) return NaN;
-
-      const delta = norm180(wf - tc);
-      const headwind = wk * Math.cos(delta * Math.PI / 180);
-
-      return tas - headwind;
-    }
-
-    function computeWcaSignedDeg(tcDeg, windFromDeg, windKt, tasKt) {
-      const tc = Number(tcDeg);
-      const wf = Number(windFromDeg);
-      const wk = Number(windKt);
-      const tas = Number(tasKt);
-
-      if (![tc, wf, wk, tas].every(Number.isFinite) || tas <= 0) return 0;
-      if (wk <= 0) return 0;
-
-      const delta = norm180(wf - tc);
-      const cross = wk * Math.sin((delta * Math.PI) / 180);
-      const ratio = cross / tas;
-
-      const clamped = Math.max(-1, Math.min(1, ratio));
-      return Math.asin(clamped) * 180 / Math.PI;
-    }
-
-    function formatWcaToken(wcaSignedDeg) {
-      const w = Number(wcaSignedDeg);
-      if (!Number.isFinite(w) || Math.abs(w) < 0.5) return "";
-      const abs = Math.round(Math.abs(w));
-      const sign = w < 0 ? "-" : "+";
-      return `${sign}${String(abs).padStart(2, "0")}`;
-    }
-
-    function formatVarTokenFromPlan(plan) {
-      const dir = String(plan?.env?.magVarDir || "").toUpperCase();
-      const deg = Number(plan?.env?.magVarDeg);
-      if ((dir !== "E" && dir !== "W") || !Number.isFinite(deg)) return "";
-
-      const abs = Math.round(Math.abs(deg));
-      const sign = (dir === "E") ? "-" : "+";
-      return `${sign}${String(abs).padStart(2, "0")}`;
-    }
-
-    function applyVariationToTH(thDeg, plan) {
-      const th = Number(thDeg);
-      if (!Number.isFinite(th)) return NaN;
-
-      const dir = String(plan?.env?.magVarDir || "").toUpperCase();
-      const v = Number(plan?.env?.magVarDeg ?? 0);
-      const varDeg = Number.isFinite(v) ? v : 0;
-
-      if (dir === "E") return norm360(th - varDeg);
-      if (dir === "W") return norm360(th + varDeg);
-      return norm360(th);
-    }
-
-    // ==============================
-    // ✅ AVG-ALTITUDE WIND/TEMP MODEL
-    // ==============================
-    function clamp01(x) { return Math.max(0, Math.min(1, x)); }
-    function degToRad(d) { return (d * Math.PI) / 180; }
-    function radToDeg(r) { return (r * 180) / Math.PI; }
-    function normalizeDeg(d) {
-      if (!Number.isFinite(d)) return 0;
-      return ((Math.round(d) % 360) + 360) % 360;
-    }
-
-    function interpWindDirDeg(dirFromA, dirFromB, f) {
-      const a = normalizeDeg(Number(dirFromA));
-      const b = normalizeDeg(Number(dirFromB));
-      const ra = degToRad(a);
-      const rb = degToRad(b);
-      const xa = Math.cos(ra), ya = Math.sin(ra);
-      const xb = Math.cos(rb), yb = Math.sin(rb);
-      const x = xa + (xb - xa) * f;
-      const y = ya + (yb - ya) * f;
-      const ang = radToDeg(Math.atan2(y, x));
-      return normalizeDeg(ang);
-    }
-
-    function computeAvgAltEnvironment(env) {
-      const avgAltFt = Number(env.avgAltFt);
-      const fieldElevFt = Number(env.fieldElevFt);
-      const cruiseAltFt = Number(env.cruiseAltFt);
-
-      if (!Number.isFinite(avgAltFt)) return null;
-
-      const oatSurfaceC = Number(env.oatC);
-      let tempAtAvgC = NaN;
-
-      if (
-        Number.isFinite(env.tempCruiseC) && Number.isFinite(oatSurfaceC) &&
-        Number.isFinite(fieldElevFt) && Number.isFinite(cruiseAltFt) &&
-        cruiseAltFt !== fieldElevFt
-      ) {
-        const f = clamp01((avgAltFt - fieldElevFt) / (cruiseAltFt - fieldElevFt));
-        tempAtAvgC = oatSurfaceC + (Number(env.tempCruiseC) - oatSurfaceC) * f;
-      } else if (Number.isFinite(oatSurfaceC) && Number.isFinite(fieldElevFt)) {
-        const deltaFt = avgAltFt - fieldElevFt;
-        tempAtAvgC = oatSurfaceC - (deltaFt / 1000) * 2;
-      }
-
-      const sKt = Number(env.surfaceWindKt ?? env.windKt);
-      const sDir = Number(env.surfaceWindFromDeg ?? env.windFromDeg);
-
-      const cKt = Number(env.windKt ?? env.surfaceWindKt);
-      const cDir = Number(env.windFromDeg ?? env.surfaceWindFromDeg);
-
-      let windKt = sKt;
-      let windDir = sDir;
-
-      if (
-        Number.isFinite(fieldElevFt) && Number.isFinite(cruiseAltFt) && cruiseAltFt !== fieldElevFt &&
-        Number.isFinite(sKt) && Number.isFinite(sDir) &&
-        Number.isFinite(cKt) && Number.isFinite(cDir)
-      ) {
-        const f = clamp01((avgAltFt - fieldElevFt) / (cruiseAltFt - fieldElevFt));
-        windKt = sKt + (cKt - sKt) * f;
-        windDir = interpWindDirDeg(sDir, cDir, f);
-      }
-
-      return {
-        windFromDeg: normalizeDeg(windDir),
-        windKt: Number.isFinite(windKt) ? Math.round(windKt) : NaN,
-        tempC: Number.isFinite(tempAtAvgC) ? tempAtAvgC : NaN
-      };
-    }
-
-function getCruiseTempC(env) {
-  // 1) If inputs.html already saved it, use it
-  const raw = env?.tempCruiseC;
-  if (raw !== "" && raw != null) {
-    const t = Number(raw);
-    if (Number.isFinite(t)) return t;
-  }
-
-  // 2) Otherwise compute from winds-aloft temps (env.aloftPts)
-  const pts = Array.isArray(env?.aloftPts) ? env.aloftPts : [];
-  const alt = Number(env?.cruiseAltFt);
-  if (!Number.isFinite(alt) || pts.length === 0) return NaN;
-
-  const rows = pts
-    .map(p => ({
-      altFt: Number(p.altFt),
-      tempC: p.tempC == null ? NaN : Number(p.tempC)
-    }))
-    .filter(p => Number.isFinite(p.altFt) && Number.isFinite(p.tempC))
-    .sort((a, b) => a.altFt - b.altFt);
-
-  if (rows.length === 0) return NaN;
-
-  // clamp low/high
-  if (alt <= rows[0].altFt) return rows[0].tempC;
-  if (alt >= rows[rows.length - 1].altFt) return rows[rows.length - 1].tempC;
-
-  // linear interpolate
-  for (let i = 0; i < rows.length - 1; i++) {
-    const a = rows[i], b = rows[i + 1];
-    if (alt >= a.altFt && alt <= b.altFt) {
-      const f = (alt - a.altFt) / (b.altFt - a.altFt);
-      return a.tempC + (b.tempC - a.tempC) * f;
-    }
-  }
-
-  return NaN;
 }
 
-    function windAtAlt(env, altFt) {
-      const fieldElevFt = Number(env.fieldElevFt);
-      const cruiseAltFt = Number(env.cruiseAltFt);
-
-      const sKt  = Number(env.surfaceWindKt ?? 0);
-      const sDir = Number(env.surfaceWindFromDeg ?? 0);
-
-      const cKt  = Number(env.windKt ?? 0);
-      const cDir = Number(env.windFromDeg ?? 0);
-
-      if (![fieldElevFt, cruiseAltFt, altFt].every(Number.isFinite)) {
-        return { windFrom: sDir, windKt: sKt };
-      }
-      if (cruiseAltFt === fieldElevFt) {
-        return { windFrom: sDir, windKt: sKt };
-      }
-
-      const f = clamp01((altFt - fieldElevFt) / (cruiseAltFt - fieldElevFt));
-
-      const windKt = sKt + (cKt - sKt) * f;
-      const windFrom = interpWindDirDeg(sDir, cDir, f);
-
-      return {
-        windFrom: normalizeDeg(windFrom),
-        windKt: Number.isFinite(windKt) ? Math.round(windKt) : NaN
-      };
-    }
-
-    function windAtClimbDistance(env, distFromDepNm) {
-      const tocDist = Number(env.climbDistWindNm);
-      const fieldElevFt = Number(env.fieldElevFt);
-      const cruiseAltFt = Number(env.cruiseAltFt);
-
-      if (![tocDist, fieldElevFt, cruiseAltFt, distFromDepNm].every(Number.isFinite) || tocDist <= 0) {
-        return {
-          windFrom: Number(env.surfaceWindFromDeg ?? 0),
-          windKt: Number(env.surfaceWindKt ?? 0)
-        };
-      }
-
-      const frac = clamp01(distFromDepNm / tocDist);
-      const altFt = fieldElevFt + (cruiseAltFt - fieldElevFt) * frac;
-
-      return windAtAlt(env, altFt);
-    }
-
-function buildDisplayLegs(plan) {
-  const legs = Array.isArray(plan?.legs) ? plan.legs : [];
-  const env = plan?.env || {};
-  const out = legs.map((l, idx) => ({ ...l, _origIndex: idx }));
-
-  const tocBefore = !!env.tocBeforeFirstFix;
-  const fixDist = Number(env.firstFixDistNm);
-  const tocDist = Number(env.climbDistWindNm);
-  const tod = env.tod;
-
-  // -----------------------------
-  // ✅ 1) TOC split (only if TOC is AFTER first fix and we have route legs)
-  // TOC position measured from first fix along the route legs.
-  // -----------------------------
-  if (!tocBefore && out.length > 0 && Number.isFinite(fixDist) && Number.isFinite(tocDist) && tocDist > fixDist) {
-    let tocFromFirstFixNm = tocDist - fixDist; // distance from first fix to TOC along route
-
-    if (Number.isFinite(tocFromFirstFixNm) && tocFromFirstFixNm > 0) {
-      let cum = 0;
-
-      for (let i = 0; i < out.length; i++) {
-        const d = Number(out[i]?.distNm);
-        if (!Number.isFinite(d) || d <= 0) continue;
-
-        if (cum + d >= tocFromFirstFixNm) {
-          // TOC is inside this leg
-          const a = tocFromFirstFixNm - cum; // from leg start to TOC
-          const b = d - a;                   // TOC to leg end
-          const original = out[i];
-
-          // (FROM -> TOC) = climb remainder
-          const legA = {
-            ...original,
-            to: "TOC",
-            distNm: a,
-            _origIndex: original._origIndex,
-            _phase: "climb"
-          };
-
-          // (TOC -> TO) = cruise
-          const legB = {
-            ...original,
-            from: "TOC",
-            distNm: b,
-            _origIndex: original._origIndex,
-            _phase: "cruise"
-          };
-
-          out.splice(i, 1, legA, legB);
-
-          // Everything after TOC is cruise unless TOD later changes things
-          for (let k = i + 1; k < out.length; k++) {
-            out[k]._phase = out[k]._phase || "cruise";
-          }
-          break;
-        }
-
-        cum += d;
-      }
-    }
-  }
-
-  // If TOC was before first fix, all route legs are cruise by definition
-  if (tocBefore) {
-    for (let i = 0; i < out.length; i++) out[i]._phase = out[i]._phase || "cruise";
-  }
-
-  // -----------------------------
-  // ✅ 2) TOD split (your existing logic)
-  // -----------------------------
-  if (tod?.ok) {
-    const li = Number(tod.legIndex);
-    const a = Number(tod.distFromLegStart);
-    const b = Number(tod.distFromLegEnd);
-
-    if (
-      Number.isFinite(li) && li >= 0 && li < out.length &&
-      Number.isFinite(a) && Number.isFinite(b) && a > 0 && b > 0
-    ) {
-      const original = out[li];
-
-      const legA = {
-        ...original,
-        to: "TOD",
-        distNm: a,
-        _origIndex: original._origIndex,
-        _phase: original._phase || "cruise"
-      };
-
-      const legB = {
-        ...original,
-        from: "TOD",
-        distNm: b,
-        _origIndex: original._origIndex,
-        _phase: original._phase || "cruise"
-      };
-
-      out.splice(li, 1, legA, legB);
-    }
-  }
-
-  // -----------------------------
-// ✅ 3) PHASE TAGGING PASS (single source of truth)
-// Ensures TOC -> next checkpoint is CRUISE.
-// -----------------------------
-if (tocBefore) {
-  // If TOC is before first fix, all route legs are cruise
-  out.forEach(l => { l._phase = "cruise"; });
-} else {
-  // Find the leg that ENDS at TOC
-  const idxTocEnd = out.findIndex(l =>
-    String(l?.to || "").trim().toUpperCase() === "TOC"
-  );
-
-  // If we have a TOC marker, everything up through that leg is climb
-  if (idxTocEnd >= 0) {
-    out.forEach((l, i) => {
-      l._phase = (i <= idxTocEnd) ? "climb" : "cruise";
-    });
-  } else {
-    // If TOC isn't present in legs for any reason, default to cruise
-    out.forEach(l => { l._phase = l._phase || "cruise"; });
-  }
 }
 
-  return out;
+function getBoxOnPage(page,id){
+
+const key=String(id).padStart(3,"0")
+
+const pageEl=PAGES[page]
+
+if(!pageEl) return null
+
+return pageEl.querySelector(`[data-box="${key}"]`)
+
 }
 
-// other helper functions above...
+function setBox(page,id,text){
 
-// ✅ paste it RIGHT HERE
-function tempAtAltFromSurfaceAnd6000(env, altFt) {
-  const oat = Number(env?.oatC);
-  const fieldElevFt = Number(env?.fieldElevFt);
-  const pts = Array.isArray(env?.aloftPts) ? env.aloftPts : [];
+const el=getBoxOnPage(page,id)
 
-  if (!Number.isFinite(altFt) || !Number.isFinite(oat) || !Number.isFinite(fieldElevFt)) return NaN;
+if(!el) return
 
-  const t6 = pts
-    .map(p => ({ altFt: Number(p.altFt), tempC: p.tempC == null ? NaN : Number(p.tempC) }))
-    .filter(p => Number.isFinite(p.altFt) && Number.isFinite(p.tempC))
-    .find(p => p.altFt === 6000)?.tempC;
+el.textContent=text??""
 
-  if (!Number.isFinite(t6)) return NaN;
+}
 
-  if (6000 === fieldElevFt) return t6;
+function setP1(id,text){ setBox(0,id,text) }
+function setP2(id,text){ setBox(1,id,text) }
 
-  const f = (altFt - fieldElevFt) / (6000 - fieldElevFt);
-  return oat + (t6 - oat) * f;
+function fmt(n,d=1){
+
+const x=Number(n)
+
+if(!Number.isFinite(x)) return ""
+
+return x.toFixed(d)
+
+}
+
+function autopopulate(){
+
+const plan=loadPlan()
+
+if(!plan || !plan.env){
+console.warn("No plan loaded")
+return
+}
+
+const env=plan.env
+
+console.log("NAVLOG POPULATE",env)
+
+
+// --------------------------------
+// proof of life
+// --------------------------------
+
+setP1(211,"POP OK")
+
+
+// --------------------------------
+// departure
+// --------------------------------
+
+setP1(211,String(env.depIcao||"").toUpperCase())
+
+
+// --------------------------------
+// checkpoints
+// --------------------------------
+
+setP1(212,String(env.cp2||"").toUpperCase())
+setP1(213,String(env.cp3||"").toUpperCase())
+
+
+// --------------------------------
+// climb summary
+// --------------------------------
+
+setP1(214,fmt(env.climbTimeMin,1))
+setP1(215,fmt(env.climbFuelGal,2))
+setP1(216,fmt(env.climbDistWindNm??env.climbDistStillAirNm,1))
+
+
+// --------------------------------
+// cruise TAS
+// --------------------------------
+
+setP1(25,fmt(env.cruiseTasKt,0))
+
+
+// --------------------------------
+// magnetic variation
+// --------------------------------
+
+if(env.magVarDeg){
+
+const dir=String(env.magVarDir||"").toUpperCase()
+
+const sign=(dir==="E")?"-":"+"
+
+setP1(57,sign+String(env.magVarDeg).padStart(2,"0"))
+
 }
 
 
+// --------------------------------
+// trip distance
+// --------------------------------
 
-  function autopopulate() {
-  const plan = loadPlan();
-  if (!plan || !plan.env) return;
-
-  const env = plan.env;
-
+setP1(188,fmt(env.tripTotalNm,1))
 
 
-  // -----------------------------
-// POH CLIMB TOTALS (from inputs.html -> env)
-// -----------------------------
-const climbTimeTotalMin = Number(env.climbTimeMin);
-const climbFuelTotalGal = Number(env.climbFuelGal);
-const climbDistTotalNm  = Number(env.climbDistWindNm ?? env.climbDistStillAirNm);
+console.log("NAVLOG populated")
 
-function clamp01(x){ return Math.max(0, Math.min(1, x)); }
-
-// Returns { timeMin, fuelGal } for a given climb distance portion
-function pohClimbPortion(distNm) {
-  const d = Number(distNm);
-
-  if (
-    !Number.isFinite(d) || d < 0 ||
-    !Number.isFinite(climbTimeTotalMin) ||
-    !Number.isFinite(climbDistTotalNm) || climbDistTotalNm <= 0
-  ) {
-    return { timeMin: NaN, fuelGal: NaN, ok: false };
-  }
-
-  const frac = clamp01(d / climbDistTotalNm);
-  const timeMin = climbTimeTotalMin * frac;
-
-  let fuelGal = NaN;
-  if (Number.isFinite(climbFuelTotalGal)) fuelGal = climbFuelTotalGal * frac;
-
-  return { timeMin, fuelGal, ok: true };
-}
-  const displayLegs = buildDisplayLegs(plan);
-
-  /* ...rest of your file stays exactly the same... */
-savePlan(plan);
 }
 
-window.autopopulate = autopopulate;
-console.log("✅ autopopulate available:", typeof window.autopopulate);
-  
-    window.addEventListener("focus", autopopulate);
+window.autopopulate=autopopulate
 
-    // INIT
-    window.addEventListener("DOMContentLoaded", () => {
-  try {
-    setHud("Drag to measure a box...");
-    drawAllBoxes();
-    autopopulate(); // populate boxes on page load
-  } catch (err) {
-    console.error("INIT ERROR:", err);
-    alert("Navlog init error — check console.");
-  }
-});
-  </script>
+
+document.getElementById("backBtn").onclick=()=>{
+window.location.href="inputs.html"
+}
+
+window.addEventListener("focus",autopopulate)
+
+window.addEventListener("DOMContentLoaded",()=>{
+
+drawAllBoxes()
+
+autopopulate()
+
+})
+
+</script>
+
 </body>
 </html>
-
-
-
-
-
