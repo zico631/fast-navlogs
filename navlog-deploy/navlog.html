@@ -182,6 +182,8 @@
     
     import { computeTodProfile } from "./js/perf/perfengine.js";
     import { BOXES } from "./js/navlog/boxmap.js";
+    window.BOXES = BOXES;
+    console.log("✅ BOXES loaded:", Array.isArray(BOXES), "count:", BOXES?.length);
 
     // ✅ DevTools access (module-safe)
     window.__planStore = { loadPlan, savePlan };
@@ -1152,6 +1154,7 @@ console.log("✅ autopopulate available:", typeof window.autopopulate);
   </script>
 </body>
 </html>
+
 
 
 
