@@ -1082,46 +1082,54 @@ function tempAtAltFromSurfaceAnd6000(env, altFt) {
 
 
 
-  function autopopulate() {
+function autopopulate() {
+
   const plan = loadPlan();
   if (!plan || !plan.env) return;
 
   const env = plan.env;
 
+  const climbTimeTotalMin = Number(env.climbTimeMin);
+  const climbFuelTotalGal = Number(env.climbFuelGal);
+  const climbDistTotalNm  = Number(env.climbDistWindNm ?? env.climbDistStillAirNm);
 
+  function clamp01(x){ return Math.max(0, Math.min(1, x)); }
 
-  // -----------------------------
-// POH CLIMB TOTALS (from inputs.html -> env)
-// -----------------------------
-const climbTimeTotalMin = Number(env.climbTimeMin);
-const climbFuelTotalGal = Number(env.climbFuelGal);
-const climbDistTotalNm  = Number(env.climbDistWindNm ?? env.climbDistStillAirNm);
+  function pohClimbPortion(distNm) {
 
-function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+    const d = Number(distNm);
 
-// Returns { timeMin, fuelGal } for a given climb distance portion
-function pohClimbPortion(distNm) {
-  const d = Number(distNm);
+    if (
+      !Number.isFinite(d) || d < 0 ||
+      !Number.isFinite(climbTimeTotalMin) ||
+      !Number.isFinite(climbDistTotalNm) || climbDistTotalNm <= 0
+    ) {
+      return { timeMin: NaN, fuelGal: NaN, ok: false };
+    }
 
-  if (
-    !Number.isFinite(d) || d < 0 ||
-    !Number.isFinite(climbTimeTotalMin) ||
-    !Number.isFinite(climbDistTotalNm) || climbDistTotalNm <= 0
-  ) {
-    return { timeMin: NaN, fuelGal: NaN, ok: false };
+    const frac = clamp01(d / climbDistTotalNm);
+
+    const timeMin = climbTimeTotalMin * frac;
+
+    let fuelGal = NaN;
+    if (Number.isFinite(climbFuelTotalGal)) {
+      fuelGal = climbFuelTotalGal * frac;
+    }
+
+    return { timeMin, fuelGal, ok: true };
   }
 
-  const frac = clamp01(d / climbDistTotalNm);
-  const timeMin = climbTimeTotalMin * frac;
-
-  let fuelGal = NaN;
-  if (Number.isFinite(climbFuelTotalGal)) fuelGal = climbFuelTotalGal * frac;
-
-  return { timeMin, fuelGal, ok: true };
-}
   const displayLegs = buildDisplayLegs(plan);
 
-  /* ...rest of your file stays exactly the same... */
+  // 🔴 THIS IS WHAT WAS MISSING
+  setP1(211, env.depIcao || "");
+  setP1(212, env.cp2 || "");
+  setP1(213, env.cp3 || "");
+
+  setP1(25, Math.round(env.cruiseTasKt || 0));
+
+  setP1(1, env.surfaceWindFromDeg || "");
+  setP1(9, env.surfaceWindKt || "");
 
 }
 
@@ -1144,6 +1152,7 @@ console.log("✅ autopopulate available:", typeof window.autopopulate);
   </script>
 </body>
 </html>
+
 
 
 
