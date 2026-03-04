@@ -2180,6 +2180,8 @@ document.getElementById("saveBtn").onclick = () => {
 };
 
   hydrateInputsFromPlan();
+  ensureAtLeastOneLegRow();
+  saveplan(plan);
   computeLegHeadingsFromVariationOnly();
   renderLegs();
   recalcTOCOrderAndPreview();
@@ -2189,6 +2191,7 @@ document.getElementById("saveBtn").onclick = () => {
 </body>
 
 </html>
+
 
 
 
