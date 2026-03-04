@@ -862,12 +862,13 @@ function tempAtAltFromSurfaceAnd6000(env, altFt) {
   const cp3Txt = String(cp3 || "").trim().toUpperCase();
   const firstTo = String(displayLegs?.[0]?.to || "").trim().toUpperCase();
   const skipFirst = (tocBefore && cp3Txt === "TOC" && firstTo === "TOC") ? 1 : 0;
+  const skipFirstLabel = (!tocBefore && cp3Txt === "TOC" && firstTo === "TOC") ? 1 : 0;
 
-  for (let i = 0; i < 6; i++) {
-    const boxId = 164 + i;
-    const toFix = String(displayLegs?.[i + skipFirst]?.to ?? "").trim().toUpperCase();
-    setP1(boxId, toFix || "");
-  }
+for (let i = 0; i < 6; i++) {
+  const boxId = 164 + i;
+  const toFix = String(displayLegs?.[i + skipFirstLabel]?.to ?? "").trim().toUpperCase();
+  setP1(boxId, toFix || "");
+}
 
   if (POPULATE_PAGE2) {
     const lastOnP1 = getBoxOnPage(0, 169)?.textContent ?? "";
@@ -1357,5 +1358,6 @@ function tempAtAltFromSurfaceAnd6000(env, altFt) {
   </script>
 </body>
 </html>
+
 
 
