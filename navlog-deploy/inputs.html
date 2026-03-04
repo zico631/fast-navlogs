@@ -694,11 +694,18 @@
       computetodprofile
     } from "./js/perf/perfengine.js";
     import { round } from "./js/perf/perfutils.js";
-    import { loadplan, saveplan, STORAGE_KEY } from "./js/plan/store.js";
+
+    // ✅ IMPORTANT FIX:
+    // Use the SAME store module + SAME export names as navlog.html:
+    // navlog.html imports { loadPlan, savePlan, STORAGE_KEY } from "./js/plan/store.js"
+    import { loadPlan, savePlan, STORAGE_KEY } from "./js/plan/store.js";
+
     import { parsevartoken } from "./js/perf/navmath.js";
 
     console.log("✅ inputs.html module loaded");
     console.log("✅ STORAGE_KEY =", STORAGE_KEY);
+    console.log("✅ raw localStorage =", localStorage.getItem(STORAGE_KEY));
+    console.log("✅ loadPlan() =", loadPlan());
 
     // -----------------------------
     // Angle helpers
@@ -768,9 +775,9 @@
     }
 
     // -----------------------------
-    // Load PLAN
+    // Load PLAN (same shape navlog expects)
     // -----------------------------
-    const plan = loadplan() || {};
+    const plan = loadPlan() || {};
     plan.env = plan.env && typeof plan.env === "object" ? plan.env : {};
     plan.legs = Array.isArray(plan.legs) ? plan.legs : [];
 
@@ -842,7 +849,6 @@
 
     // -----------------------------
     // ✅ LOCK: ONLY Route Legs row #1 FROM = checkpoint #3
-    // (No other autopop to route legs)
     // -----------------------------
     function getLockedFromCheckpoint3() {
       const v = String(plan?.env?.cp3 || "").trim();
@@ -858,8 +864,6 @@
       if (plan.legs.length === 0) {
         plan.legs.push({ from:"", to:"", tcDeg:0, distNm:NaN, wcaDeg:0 });
       }
-
-      // ✅ ONLY force FROM on leg 0
       plan.legs[0].from = lockedFrom;
     }
 
@@ -887,7 +891,6 @@
         const tcEl = tr.querySelector(".tc");
         setDirInputBehavior(tcEl);
 
-        // ✅ Lock first row FROM to env.cp3 (only)
         if (i === 0) {
           const lockedFrom = getLockedFromCheckpoint3();
           const fromEl = tr.querySelector(".from");
@@ -901,21 +904,20 @@
         }
 
         tr.querySelector(".from").addEventListener("input", e => {
-          // If locked, ignore edits
           if (i === 0 && getLockedFromCheckpoint3()) return;
           plan.legs[i].from = String(e.target.value || "");
-          saveplan(plan);
+          savePlan(plan);
         });
 
         tr.querySelector(".to").addEventListener("input", e => {
           plan.legs[i].to = String(e.target.value || "");
-          saveplan(plan);
+          savePlan(plan);
           updateTodPreview();
         });
 
         tr.querySelector(".tc").addEventListener("input", e => {
           plan.legs[i].tcDeg = parseDegText(e.target.value);
-          saveplan(plan);
+          savePlan(plan);
           updateTodPreview();
         });
 
@@ -923,7 +925,7 @@
           const v = e.target.valueAsNumber;
           plan.legs[i].distNm = Number.isFinite(v) ? v : NaN;
           computeTripTotals();
-          saveplan(plan);
+          savePlan(plan);
           updateTodPreview();
         });
 
@@ -931,11 +933,10 @@
           const idx = Number(e.target.dataset.i);
           plan.legs.splice(idx, 1);
           computeTripTotals();
-          saveplan(plan);
+          savePlan(plan);
 
-          // If leg 0 still exists after delete, re-enforce lock
           enforceCheckpoint3IntoFirstLeg();
-          saveplan(plan);
+          savePlan(plan);
 
           renderLegs();
           updateTodPreview();
@@ -950,11 +951,9 @@
       plan.legs.push({ from:"", to:"", tcDeg:0, distNm:NaN, wcaDeg:0 });
 
       computeTripTotals();
-
-      // ✅ If cp3 exists, keep leg 0 FROM locked correctly
       enforceCheckpoint3IntoFirstLeg();
 
-      saveplan(plan);
+      savePlan(plan);
       renderLegs();
       updateTodPreview();
     });
@@ -994,17 +993,17 @@
 
     waRegionEl?.addEventListener("change", () => {
       plan.env.waRegion = waRegionEl.value;
-      saveplan(plan);
+      savePlan(plan);
       loadWindsAloftStations();
     });
     waLevelEl?.addEventListener("change", () => {
       plan.env.waLevel = waLevelEl.value;
-      saveplan(plan);
+      savePlan(plan);
       loadWindsAloftStations();
     });
     waStationEl?.addEventListener("change", () => {
       plan.env.waStation = (waStationEl.value || "").toUpperCase();
-      saveplan(plan);
+      savePlan(plan);
     });
 
     async function fetchAloftStation(region, level, station) {
@@ -1077,7 +1076,7 @@
       const tCruise = tempAtAltFt(plan.env.aloftPts, cruiseAltFt);
       plan.env.tempCruiseC = Number.isFinite(tCruise) ? tCruise : NaN;
 
-      saveplan(plan);
+      savePlan(plan);
     }
 
     // -----------------------------
@@ -1114,7 +1113,7 @@
         gsPillEl.textContent = "GS: —";
         gsPillEl.className = "pill warn";
         plan.env.gsKt = NaN;
-        saveplan(plan);
+        savePlan(plan);
         return;
       }
 
@@ -1122,7 +1121,7 @@
       gsPillEl.className = "pill ok";
 
       plan.env.gsKt = gs;
-      saveplan(plan);
+      savePlan(plan);
     }
 
     // -----------------------------
@@ -1168,9 +1167,6 @@
       }
     }
 
-    // ✅ IMPORTANT CHANGE:
-    // - Keeps your KFRG > TOC > FIX OR KFRG > FIX > TOC decision logic
-    // - Persists cp1/cp2/cp3 into plan.env for navlog.html autopopulate
     function setPreviewBoxes({ dep, firstFixName, tocBeforeFirstFix, ok, message }) {
       const depTxt = dep || "—";
       cp1El.value = depTxt;
@@ -1181,11 +1177,10 @@
         tocDecisionPillEl.textContent = message || "TOC decision: —";
         tocDecisionPillEl.className = "pill warn";
 
-        // ✅ Persist for navlog autopopulate
         plan.env.cp1 = depTxt;
         plan.env.cp2 = "—";
         plan.env.cp3 = "—";
-        saveplan(plan);
+        savePlan(plan);
         return;
       }
 
@@ -1204,11 +1199,10 @@
 
       tocDecisionPillEl.className = "pill ok";
 
-      // ✅ Persist for navlog autopopulate
       plan.env.cp1 = cp1El.value;
       plan.env.cp2 = cp2El.value;
       plan.env.cp3 = cp3El.value;
-      saveplan(plan);
+      savePlan(plan);
     }
 
     function setClimbNumbers({ ok, cruiseAltFt, timeMin, fuelGal, distWindNm, distStillAirNm, message }) {
@@ -1349,7 +1343,6 @@
         return res;
       }
 
-      // ✅ sets cp1/cp2/cp3 and persists into env
       setPreviewBoxes({ dep, firstFixName, tocBeforeFirstFix: res.tocBeforeFirstFix, ok: true });
 
       setClimbNumbers({
@@ -1368,7 +1361,6 @@
         distNm: res.climbDistWindNm
       });
 
-      // Persist env for navlog.html
       plan.aircraftId = aircraftEl.value;
 
       env.depIcao = dep;
@@ -1394,10 +1386,9 @@
       env.climbDistStillAirNm = res.climbDistStillAirNm;
       env.climbDistWindNm = res.climbDistWindNm;
 
-      // ✅ ONLY route-legs autopop behavior: lock leg 0 FROM = cp3
       enforceCheckpoint3IntoFirstLeg();
 
-      saveplan(plan);
+      savePlan(plan);
       renderLegs();
 
       return { ...res, dep, firstFixName, cruiseAltFt };
@@ -1408,38 +1399,38 @@
     // -----------------------------
     destIcaoEl?.addEventListener("input", () => {
       plan.env.destIcao = String(destIcaoEl.value || "").trim().toUpperCase();
-      saveplan(plan);
+      savePlan(plan);
       updateTodPreview();
     });
     destIcaoEl?.addEventListener("blur", () => {
       const v = String(destIcaoEl.value || "").trim().toUpperCase();
       destIcaoEl.value = v;
       plan.env.destIcao = v;
-      saveplan(plan);
+      savePlan(plan);
       updateTodPreview();
     });
 
     destTpaEl?.addEventListener("input", () => {
       const v = Number(destTpaEl.value);
       plan.env.destTpaFt = Number.isFinite(v) ? v : NaN;
-      saveplan(plan);
+      savePlan(plan);
       updateTodPreview();
     });
 
     destFieldElevEl?.addEventListener("input", () => {
       const v = Number(destFieldElevEl.value);
       plan.env.destFieldElevFt = Number.isFinite(v) ? v : NaN;
-      saveplan(plan);
+      savePlan(plan);
     });
     destOatEl?.addEventListener("input", () => {
       const v = Number(destOatEl.value);
       plan.env.destOatC = Number.isFinite(v) ? v : NaN;
-      saveplan(plan);
+      savePlan(plan);
     });
     destAltimeterEl?.addEventListener("input", () => {
       const v = Number(destAltimeterEl.value);
       plan.env.destAltimeterInHg = Number.isFinite(v) ? v : NaN;
-      saveplan(plan);
+      savePlan(plan);
     });
     destAltimeterEl?.addEventListener("blur", () => {
       if (Number.isFinite(Number(destAltimeterEl.value))) {
@@ -1447,12 +1438,12 @@
       }
       const v = Number(destAltimeterEl.value);
       plan.env.destAltimeterInHg = Number.isFinite(v) ? v : NaN;
-      saveplan(plan);
+      savePlan(plan);
     });
     destWindKtEl?.addEventListener("input", () => {
       const v = Number(destWindKtEl.value);
       plan.env.destSurfaceWindKt = Number.isFinite(v) ? v : NaN;
-      saveplan(plan);
+      savePlan(plan);
     });
 
     // -----------------------------
@@ -1472,7 +1463,7 @@
           : "VAR: —";
       }
 
-      saveplan(plan);
+      savePlan(plan);
     }
 
     magVarEl?.addEventListener("change", () => {
@@ -1511,7 +1502,7 @@
           : `Fetched (${station})`;
         aloftCruisePillEl.className = "pill ok";
 
-        saveplan(plan);
+        savePlan(plan);
         updateCruiseWindPill();
         recalcTOCOrderAndPreview();
       } catch (e) {
@@ -1526,7 +1517,7 @@
     // -----------------------------
     function clearTodEnv() {
       plan.env.tod = null;
-      saveplan(plan);
+      savePlan(plan);
     }
 
     function updateTodPreview() {
@@ -1567,8 +1558,8 @@
       cruiseAltEl, firstFixNameEl, firstFixTcEl, firstFixDistEl, aircraftEl
     ];
     for (const el of recalcFields) {
-      el?.addEventListener("input", () => { recalcTOCOrderAndPreview(); saveplan(plan); });
-      el?.addEventListener("change", () => { recalcTOCOrderAndPreview(); saveplan(plan); });
+      el?.addEventListener("input", () => { recalcTOCOrderAndPreview(); savePlan(plan); });
+      el?.addEventListener("change", () => { recalcTOCOrderAndPreview(); savePlan(plan); });
     }
     recalcTocBtn && (recalcTocBtn.onclick = () => recalcTOCOrderAndPreview());
 
@@ -1578,14 +1569,14 @@
     altimeterEl?.addEventListener("input", () => {
       const v = Number(altimeterEl.value);
       plan.env.altimeterInHg = Number.isFinite(v) ? v : NaN;
-      saveplan(plan);
+      savePlan(plan);
       recalcTOCOrderAndPreview();
     });
     altimeterEl?.addEventListener("blur", () => {
       const v = Number(altimeterEl.value);
       if (Number.isFinite(v)) altimeterEl.value = v.toFixed(2);
       plan.env.altimeterInHg = Number.isFinite(v) ? v : NaN;
-      saveplan(plan);
+      savePlan(plan);
       recalcTOCOrderAndPreview();
     });
 
@@ -1636,7 +1627,7 @@
       cruisePerfPillEl.textContent = `Cruise TAS / GPH: ${tasTxt} / ${gphTxt} @ ${rpm} RPM`;
       cruisePerfPillEl.className = "pill ok";
 
-      saveplan(plan);
+      savePlan(plan);
     }
 
     rpmPillsEl?.addEventListener("click", (e) => {
@@ -1645,7 +1636,7 @@
       const rpm = Number(btn.dataset.rpm);
       if (!Number.isFinite(rpm)) return;
       plan.env.cruiseRpm = rpm;
-      saveplan(plan);
+      savePlan(plan);
       setActiveRpmPill(rpm);
       updateCruisePerfUI();
       recalcTOCOrderAndPreview();
@@ -1720,12 +1711,11 @@
       updateCruisePerfUI();
       updateCruiseWindPill();
 
-      // If cp3 exists from a prior run, keep leg 0 locked immediately
       enforceCheckpoint3IntoFirstLeg();
     }
 
     document.getElementById("saveBtn").onclick = () => {
-      saveplan(plan);
+      savePlan(plan);
       const decision = recalcTOCOrderAndPreview();
       if (!decision.ok) {
         alert(decision.error || "Saved basic inputs, but TOC inputs need fixing.");
@@ -1737,19 +1727,19 @@
     // Time + fuel
     timeOffLocalEl?.addEventListener("input", () => {
       plan.env.timeOffLocal = String(timeOffLocalEl.value || "").trim();
-      saveplan(plan);
+      savePlan(plan);
     });
     timeOffLocalEl?.addEventListener("blur", () => {
       const norm = normalizeHHMM(timeOffLocalEl.value);
       timeOffLocalEl.value = norm || timeOffLocalEl.value;
       plan.env.timeOffLocal = norm || "";
-      saveplan(plan);
+      savePlan(plan);
     });
 
     fuelStartGalEl?.addEventListener("input", () => {
       const v = Number(fuelStartGalEl.value);
       plan.env.fuelOnBoardGal = Number.isFinite(v) ? v : NaN;
-      saveplan(plan);
+      savePlan(plan);
     });
 
     // -----------------------------
@@ -1757,7 +1747,7 @@
     // -----------------------------
     hydrateInputsFromPlan();
     computeTripTotals();
-    saveplan(plan);
+    savePlan(plan);
     renderLegs();
     recalcTOCOrderAndPreview();
     updateTodPreview();
