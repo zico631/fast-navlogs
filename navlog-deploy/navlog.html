@@ -174,16 +174,9 @@
   </div>
 
   <script type="module">
-    import { loadPlan, savePlan, STORAGE_KEY } from "./js/plan/store.js";
-
-    console.log("NAVLOG store key =", STORAGE_KEY);
-    console.log("NAVLOG raw =", localStorage.getItem(STORAGE_KEY));
-    console.log("NAVLOG loadPlan =", loadPlan());
-    
-    import { computeTodProfile } from "./js/perf/perfengine.js";
-    import { BOXES } from "./js/navlog/boxmap.js";
-    window.BOXES = BOXES;
-    console.log("✅ BOXES loaded:", Array.isArray(BOXES), "count:", BOXES?.length);
+    import { loadPlan, savePlan } from "./js/plan/store.js";
+    import { computeTodProfile } from "./js/perf/perfEngine.js";
+    import { BOXES } from "./js/navlog/boxMap.js";
 
     // ✅ DevTools access (module-safe)
     window.__planStore = { loadPlan, savePlan };
@@ -846,24 +839,46 @@ function windsForSegment({ kind, i, env, plan }) {
       };
     }
 
-function getCruiseTempC(env) {
-  // 1) If inputs.html already saved it, use it
-  const raw = env?.tempCruiseC;
-  if (raw !== "" && raw != null) {
-    const t = Number(raw);
-    if (Number.isFinite(t)) return t;
-  }
+        function getCruiseTempC(env) {
+// 1) If inputs.html already saved it, use it
+const raw = env?.tempCruiseC;
+if (raw !== "" && raw != null) {
+  const t = Number(raw);
+  if (Number.isFinite(t)) return t;
+}
 
-  // 2) Otherwise compute from winds-aloft temps (env.aloftPts)
+
+
+function tempAtAltFromSurfaceAnd6000(env, altFt) {
+  const oat = Number(env?.oatC);
+  const fieldElevFt = Number(env?.fieldElevFt);
+  const pts = Array.isArray(env?.aloftPts) ? env.aloftPts : [];
+
+  if (!Number.isFinite(altFt) || !Number.isFinite(oat) || !Number.isFinite(fieldElevFt)) return NaN;
+
+  // Find the 6000 ft temp from aloftPts
+  const t6 = pts
+    .map(p => ({ altFt: Number(p.altFt), tempC: p.tempC == null ? NaN : Number(p.tempC) }))
+    .filter(p => Number.isFinite(p.altFt) && Number.isFinite(p.tempC))
+    .find(p => p.altFt === 6000)?.tempC;
+
+  if (!Number.isFinite(t6)) return NaN;
+
+  // Linear interpolate between (fieldElevFt, oat) and (6000, t6)
+  if (6000 === fieldElevFt) return t6;
+
+  const f = (altFt - fieldElevFt) / (6000 - fieldElevFt);
+  return oat + (t6 - oat) * f;
+}
+
+  // 2) Otherwise, try to compute from aloftPts (same data you already fetched)
   const pts = Array.isArray(env?.aloftPts) ? env.aloftPts : [];
   const alt = Number(env?.cruiseAltFt);
   if (!Number.isFinite(alt) || pts.length === 0) return NaN;
 
+  // find two points that bracket cruise altitude
   const rows = pts
-    .map(p => ({
-      altFt: Number(p.altFt),
-      tempC: p.tempC == null ? NaN : Number(p.tempC)
-    }))
+    .map(p => ({ altFt: Number(p.altFt), tempC: (p.tempC == null ? NaN : Number(p.tempC)) }))
     .filter(p => Number.isFinite(p.altFt) && Number.isFinite(p.tempC))
     .sort((a, b) => a.altFt - b.altFt);
 
@@ -1084,79 +1099,788 @@ function tempAtAltFromSurfaceAnd6000(env, altFt) {
 
 
 
-function autopopulate() {
-
+  function autopopulate() {
   const plan = loadPlan();
   if (!plan || !plan.env) return;
 
   const env = plan.env;
 
-  const climbTimeTotalMin = Number(env.climbTimeMin);
-  const climbFuelTotalGal = Number(env.climbFuelGal);
-  const climbDistTotalNm  = Number(env.climbDistWindNm ?? env.climbDistStillAirNm);
 
-  function clamp01(x){ return Math.max(0, Math.min(1, x)); }
 
-  function pohClimbPortion(distNm) {
+  // -----------------------------
+// POH CLIMB TOTALS (from inputs.html -> env)
+// -----------------------------
+const climbTimeTotalMin = Number(env.climbTimeMin);
+const climbFuelTotalGal = Number(env.climbFuelGal);
+const climbDistTotalNm  = Number(env.climbDistWindNm ?? env.climbDistStillAirNm);
 
-    const d = Number(distNm);
+function clamp01(x){ return Math.max(0, Math.min(1, x)); }
 
-    if (
-      !Number.isFinite(d) || d < 0 ||
-      !Number.isFinite(climbTimeTotalMin) ||
-      !Number.isFinite(climbDistTotalNm) || climbDistTotalNm <= 0
-    ) {
-      return { timeMin: NaN, fuelGal: NaN, ok: false };
-    }
+// Returns { timeMin, fuelGal } for a given climb distance portion
+function pohClimbPortion(distNm) {
+  const d = Number(distNm);
 
-    const frac = clamp01(d / climbDistTotalNm);
-
-    const timeMin = climbTimeTotalMin * frac;
-
-    let fuelGal = NaN;
-    if (Number.isFinite(climbFuelTotalGal)) {
-      fuelGal = climbFuelTotalGal * frac;
-    }
-
-    return { timeMin, fuelGal, ok: true };
+  if (
+    !Number.isFinite(d) || d < 0 ||
+    !Number.isFinite(climbTimeTotalMin) ||
+    !Number.isFinite(climbDistTotalNm) || climbDistTotalNm <= 0
+  ) {
+    return { timeMin: NaN, fuelGal: NaN, ok: false };
   }
 
+  const frac = clamp01(d / climbDistTotalNm);
+  const timeMin = climbTimeTotalMin * frac;
+
+  let fuelGal = NaN;
+  if (Number.isFinite(climbFuelTotalGal)) fuelGal = climbFuelTotalGal * frac;
+
+  return { timeMin, fuelGal, ok: true };
+}
   const displayLegs = buildDisplayLegs(plan);
 
-  // 🔴 THIS IS WHAT WAS MISSING
-  setP1(211, env.depIcao || "");
-  setP1(212, env.cp2 || "");
-  setP1(213, env.cp3 || "");
 
-  setP1(25, Math.round(env.cruiseTasKt || 0));
 
-  setP1(1, env.surfaceWindFromDeg || "");
-  setP1(9, env.surfaceWindKt || "");
 
+  // ------------------------------------------------------------
+// ✅ CLIMB ENDS AT TOC (not time-based)
+// If displayLegs contains a segment that ENDS at "TOC", then:
+// - indices <= that segment are climb (74 TAS)
+// - indices  > that segment are cruise TAS
+// ------------------------------------------------------------
+const up = (s) => String(s || "").trim().toUpperCase();
+
+// index of the segment that ENDS at TOC (e.g. STACKS→TOC)
+const tocEndIndex = Array.isArray(displayLegs)
+  ? displayLegs.findIndex(l => up(l?.to) === "TOC")
+  : -1;
+
+// ✅ HARD OVERRIDE: once a segment STARTS at TOC, it's CRUISE.
+// This fixes the "TOC after first fix" case where climb tagging can bleed forward.
+if (Array.isArray(displayLegs)) {
+  let seenTocStart = false;
+  for (let i = 0; i < displayLegs.length; i++) {
+    const from = up(displayLegs[i]?.from);
+    if (from === "TOC") seenTocStart = true;
+    if (seenTocStart) displayLegs[i]._phase = "cruise";
+  }
 }
 
-window.autopopulate = autopopulate;
-console.log("✅ autopopulate available:", typeof window.autopopulate);
+function isClimbDisplayLeg(displayIndex) {
+  const leg = displayLegs?.[displayIndex];
+  if (!leg) return false;
+
+  // ✅ HARD RULE: anything that STARTS at TOC is cruise
+  if (up(leg.from) === "TOC") return false;
+
+  // ✅ If TOC exists, climb is only up through the segment that ENDS at TOC
+  if (tocEndIndex >= 0) return displayIndex <= tocEndIndex;
+
+  // Otherwise fall back to your original time-based climb logic
+  const origIdx = Number.isFinite(Number(leg?._origIndex))
+    ? Number(leg._origIndex)
+    : displayIndex;
+
+  return isLegInClimb(origIdx, plan);
+}
+function tasForDisplayLeg(displayIndex) {
+  if (isClimbDisplayLeg(displayIndex)) return 74;
+  const cruise = Number(env?.cruiseTasKt);
+  return Number.isFinite(cruise) ? cruise : NaN;
+}
+
+function windsForDisplayLeg(displayIndex) {
+  // During climb: use your avg-alt model
+  if (isClimbDisplayLeg(displayIndex)) {
+    const avg = computeAvgAltEnvironment(env);
+    return {
+      windFrom: Number(avg?.windFromDeg ?? env.surfaceWindFromDeg ?? 0),
+      windKt:   Number(avg?.windKt ?? env.surfaceWindKt ?? 0)
+    };
+  }
+
+  // After TOC: cruise winds (fallback to surface)
+  const wf = Number.isFinite(Number(env.windFromDeg))
+    ? Number(env.windFromDeg)
+    : Number(env.surfaceWindFromDeg ?? 0);
+
+  const wk = Number.isFinite(Number(env.windKt))
+    ? Number(env.windKt)
+    : Number(env.surfaceWindKt ?? 0);
+
+  return { windFrom: wf, windKt: wk };
+}
+
+  const POPULATE_PAGE2 = (() => {
+    const legs = Array.isArray(plan?.legs) ? plan.legs : [];
+    if (legs.length <= 6) return false;
+
+    for (let i = 0; i < 6; i++) {
+      const tc = Number(legs[i]?.tcDeg);
+      const d  = Number(legs[i]?.distNm);
+      if (!Number.isFinite(tc) || tc <= 0) return false;
+      if (!Number.isFinite(d)  || d  <= 0) return false;
+    }
+    return true;
+  })();
+
+const todHdr = env.tod;
+
+if (todHdr?.ok && Number.isFinite(Number(todHdr.todNm))) {
+  const todLine =
+    `TOD ${Number(todHdr.todNm).toFixed(1)} NM before ${String(todHdr.destIcao || "").toUpperCase()} — ` +
+    `${String(todHdr.from || "").toUpperCase()}→${String(todHdr.to || "").toUpperCase()} (+${Number(todHdr.distFromLegStart || 0).toFixed(1)} NM)`;
+
+  setP1(227, todLine);
+  if (POPULATE_PAGE2) setP2(227, todLine);
+} else {
+  setP1(227, "");
+  if (POPULATE_PAGE2) setP2(227, "");
+}
+
+  // -----------------------------
+  // RUNNING STATE (recomputed each run)
+  // -----------------------------
+  const startFuelGal = Number(
+    env.fuelOnBoardGal ??
+    env.fuelTakeoffGal ??
+    env.fuelStartGal
+  );
+
+  let elapsedMin = 0;
+  let fuelUsedCumGal = 0;
+
+  function setFuelRemaining(pageIndex, rowIndex0, fuelUsedThisRowGal) {
+    const remainBox = 137 + rowIndex0;
+    if (!Number.isFinite(startFuelGal)) { setP(pageIndex, remainBox, ""); return; }
+
+    const used = Number(fuelUsedThisRowGal);
+    if (Number.isFinite(used)) fuelUsedCumGal += used;
+
+    const remaining = startFuelGal - fuelUsedCumGal;
+    setP(pageIndex, remainBox, Number.isFinite(remaining) ? fmtNum(Math.max(0, remaining), 2) : "");
+  }
+
+  // -----------------------------
+  // TIME OFF (box 189) - page 2 only if enabled
+  // -----------------------------
+  const timeOffStr = String(env.timeOffLocal || "").trim();
+  setP1(189, timeOffStr);
+  if (POPULATE_PAGE2) setP2(189, timeOffStr);
+
+  const timeOffMin = parseHHMM(timeOffStr);
+
+// -----------------------------
+// CHECKPOINT COLUMN (161–169)
+// -----------------------------
+const dep = (env.depIcao || "").toUpperCase();
+const firstFix = (env.firstFixName || "").toUpperCase();
+const tocBefore = !!env.tocBeforeFirstFix;
+
+const cp1 = dep || "—";
+const cp2 = tocBefore ? "TOC" : (firstFix || "FIX");
+const cp3 = tocBefore ? (firstFix || "FIX") : "TOC";
+
+// ✅ Page 1 always uses the “start of flight” logic
+setP1(161, cp1);
+setP1(162, cp2);
+setP1(163, cp3);
+
+// page 1 continuation rows (164–169)
+// Prevent duplicate TOC if cp3 already printed TOC
+const cp3Txt = String(cp3 || "").trim().toUpperCase();
+const firstTo = String(displayLegs?.[0]?.to || "").trim().toUpperCase();
+const skipFirst = (cp3Txt === "TOC" && firstTo === "TOC") ? 1 : 0;
+
+for (let i = 0; i < 6; i++) {
+  const boxId = 164 + i;
+  const toFix = String(displayLegs?.[i + skipFirst]?.to ?? "").trim().toUpperCase();
+  setP1(boxId, toFix || "");
+}
+
+// ✅ Page 2 only if enabled, and it CONTINUES where page 1 ended
+if (POPULATE_PAGE2) {
+  // first box on page 2 repeats the last checkpoint on page 1
+  const lastOnP1 = getBoxOnPage(0, 169)?.textContent ?? "";
+  setP2(161, lastOnP1);
+
+  // then continue with legs[6..13].to
+  setP2(162, String(displayLegs?.[6]?.to ?? "").trim().toUpperCase());
+  setP2(163, String(displayLegs?.[7]?.to ?? "").trim().toUpperCase());
+
+  for (let i = 0; i < 6; i++) {
+    const boxId = 164 + i;          // 164..169
+    const legIx = 8 + i;            // legs[8..13]
+    const toFix = String(displayLegs?.[legIx]?.to ?? "").trim().toUpperCase();
+    setP2(boxId, toFix || "");
+  }
+}
+
+
+  // -----------------------------
+// COURSE / ROUTE (TC) COLUMN (153–160)
+// -----------------------------
+// ✅ Row 1/2 TC fallback: env.firstFixTcDeg -> displayLegs[0].tcDeg
+const tcRow1 = Number(
+  (env.firstFixTcDeg != null && !Number.isNaN(Number(env.firstFixTcDeg)))
+    ? Number(env.firstFixTcDeg)
+    : Number(displayLegs?.[0]?.tcDeg)
+);
+
+const tcRow1Txt = Number.isFinite(tcRow1) ? formatDeg3(tcRow1) : "";
+
+setP1(153, tcRow1Txt);
+setP1(154, tcRow1Txt);
+
+  // rows 3–8 come from plan.legs[0..5]
+  for (let i = 0; i < 6; i++) {
+    const boxId = 155 + i;
+    const tc = Number(displayLegs?.[i]?.tcDeg);
+    setP1(boxId, Number.isFinite(tc) ? formatDeg3(tc) : "");
+  }
+
   
+if (POPULATE_PAGE2) {
+  // ✅ Page 2 rows 1–2 must come from displayLegs[6] and displayLegs[7]
+  const tcP2r1 = Number(displayLegs?.[6]?.tcDeg);
+  const tcP2r2 = Number(displayLegs?.[7]?.tcDeg);
+
+  setP2(153, Number.isFinite(tcP2r1) ? formatDeg3(tcP2r1) : "");
+  setP2(154, Number.isFinite(tcP2r2) ? formatDeg3(tcP2r2) : "");
+
+  // ✅ Page 2 rows 3–8 remain displayLegs[8..13]
+  for (let i = 0; i < 6; i++) {
+    const boxId = 155 + i;              // 155..160
+    const tc = Number(displayLegs?.[8 + i]?.tcDeg);
+    setP2(boxId, Number.isFinite(tc) ? formatDeg3(tc) : "");
+  }
+}
+
+  // -----------------------------
+  // ALTITUDE COLUMN (145–152)
+  // -----------------------------
+  const fixDist = Number(env.firstFixDistNm);
+  const tocDist = Number(env.climbDistWindNm);
+  const fieldElevFt = Number(env.fieldElevFt);
+  const cruiseAltFt = Number(env.cruiseAltFt);
+
+  let firstFixAltFt = NaN;
+
+  if (tocBefore) {
+    if (Number.isFinite(cruiseAltFt)) firstFixAltFt = cruiseAltFt;
+  } else {
+    if (
+      Number.isFinite(fieldElevFt) &&
+      Number.isFinite(cruiseAltFt) &&
+      Number.isFinite(fixDist) &&
+      Number.isFinite(tocDist) &&
+      tocDist > 0
+    ) {
+      const f = Math.max(0, Math.min(1, fixDist / tocDist));
+      firstFixAltFt = fieldElevFt + (cruiseAltFt - fieldElevFt) * f;
+    }
+  }
+
+  env.firstFixAltFt = Number.isFinite(firstFixAltFt) ? Math.round(firstFixAltFt) : NaN;
+
+  const alt145 = tocBefore ? Number(env.cruiseAltFt) : Number(env.firstFixAltFt);
+  const alt145Txt = Number.isFinite(alt145) ? String(Math.round(alt145)) : "";
+
+  setP1(145, alt145Txt);
+  setP1(146, Number.isFinite(cruiseAltFt) ? String(Math.round(cruiseAltFt)) : "");
+  
+
+// -----------------------------
+// ✅ TOD altitude override for final segment(s)
+// Boxes 147–152 correspond to page 1 rows 3–8 (displayLegs[0..5])
+// -----------------------------
+const destTpaFt = Number(env.destTpaFt);
+const todOk = !!env.tod?.ok && Number.isFinite(destTpaFt);
+
+// Find where the "after TOD" segment begins inside displayLegs
+const todStartIndex = todOk
+  ? displayLegs.findIndex(l => String(l?.from || "").trim().toUpperCase() === "TOD")
+  : -1;
+
+function altForDisplayLegIndex(displayLegIndex) {
+  const leg = displayLegs?.[displayLegIndex];
+
+    // ✅ If this row does not correspond to a real leg, leave blank
+  if (!leg || !Number.isFinite(leg.distNm) || leg.distNm <= 0) {
+    return "";
+  }
+
+
+  // Default behavior: cruise altitude
+  if (!Number.isFinite(cruiseAltFt)) return "";
+  let alt = cruiseAltFt;
+
+  const destIcao = String(env.destIcao || "").trim().toUpperCase();
+  const toIcao   = String(leg?.to || "").trim().toUpperCase();
+  const fromIcao = String(leg?.from || "").trim().toUpperCase();
+
+  // ✅ 1) Only force TPA on the FINAL leg that actually goes TO the destination
+  if (todOk && Number.isFinite(destTpaFt) && destIcao && toIcao === destIcao) {
+    return String(Math.round(destTpaFt));
+  }
+
+  // ✅ 2) If no TOD marker exists, just show cruise
+  if (!(todOk && todStartIndex >= 0)) {
+    return String(Math.round(alt));
+  }
+
+  // ✅ 3) BEFORE TOD => cruise
+  if (displayLegIndex < todStartIndex) {
+    return String(Math.round(alt));
+  }
+
+  // ✅ 4) AFTER TOD => estimate altitude at the END of this leg (arrival at next fix)
+  let distFromTodNm = 0;
+  for (let i = todStartIndex; i <= displayLegIndex; i++) {
+    const d = Number(displayLegs?.[i]?.distNm);
+    if (Number.isFinite(d)) distFromTodNm += d;
+  }
+
+  // Simple deterministic descent model:
+  // ft per NM = 60 * VS / GS
+  const vsFpm = 500;
+  const gsKt  = 90;
+  const ftPerNm = (60 * Math.abs(vsFpm)) / Math.max(1, gsKt);
+
+  alt = cruiseAltFt - (ftPerNm * distFromTodNm);
+
+  // Don’t go below TPA if we have it
+  if (Number.isFinite(destTpaFt)) alt = Math.max(destTpaFt, alt);
+
+  return Number.isFinite(alt) ? String(Math.round(alt)) : "";
+}
+
+// Page 1 rows 3–8 => boxes 147–152 map to displayLegs[0..5]
+for (let r = 0; r < 6; r++) {
+  const boxId = 147 + r;     // 147..152
+  const txt = altForDisplayLegIndex(r);
+  setP1(boxId, txt);
+}
+
+// Page 2 rows 1–8 => boxes 145–152 map to displayLegs[6..13]
+if (POPULATE_PAGE2) {
+  for (let r = 0; r < 8; r++) {
+    const boxId = 145 + r;         // 145..152
+    const displayIndex = 6 + r;    // page2 rows map to displayLegs[6..13]
+    const leg = displayLegs?.[displayIndex];
+
+    // ✅ No leg => leave altitude blank
+    if (!leg) {
+      setP2(boxId, "");
+      continue;
+    }
+
+    setP2(boxId, altForDisplayLegIndex(displayIndex));
+  }
+}
+// -----------------------------
+// ROW 1 headings (boxes 33/41/49/57/65 + TAS box 25)
+// Use climb-interpolated wind at mid-climb distance (NOT raw surface wind)
+// -----------------------------
+{
+  const tc = Number(env.firstFixTcDeg ?? displayLegs?.[0]?.tcDeg ?? NaN);
+  const tcOk = Number.isFinite(tc);
+
+  const tasKt = 74;
+
+  // Row1 distance: dep->TOC if tocBefore, else dep->firstFix
+  let row1DistLocal = Number(env.climbDistWindNm);
+  if (!tocBefore && Number.isFinite(fixDist)) row1DistLocal = fixDist;
+
+  const distMid = Number.isFinite(row1DistLocal) ? (row1DistLocal / 2) : 0;
+  const w = windAtClimbDistance(env, distMid);
+
+  const windFromDeg = Number(w.windFrom);
+  const windKt      = Number(w.windKt);
+
+  const wcaDeg = tcOk ? computeWcaSignedDeg(tc, windFromDeg, windKt, tasKt) : 0;
+  const wcaToken = tcOk ? (formatWcaToken(wcaDeg) || "0") : "";
+
+  const th = tcOk ? norm360(tc + wcaDeg) : NaN;
+  const varToken = formatVarTokenFromPlan(plan);
+  const mh = tcOk ? applyVariationToTH(th, plan) : NaN;
+
+  setP1(33, tcOk ? formatDeg3(tc) : "");
+  setP1(41, wcaToken);
+  setP1(49, Number.isFinite(th) ? formatDeg3(th) : "");
+  setP1(57, varToken);
+  setP1(65, Number.isFinite(mh) ? formatDeg3(mh) : "");
+  setP1(25, formatTAS(tasKt));
+}
+
+// -----------------------------
+// ROW 1 climb performance (winds/dist/gs/time/fuel/eta)
+// -----------------------------
+let row1Dist = Number(env.climbDistWindNm);
+if (!tocBefore && Number.isFinite(fixDist)) row1Dist = fixDist;
+
+const tc1 = Number(
+  env.firstFixTcDeg ?? displayLegs?.[0]?.tcDeg ?? NaN
+);
+const tas1 = 74;
+
+// Keep wind display boxes (001/009) as a “representative” climb wind
+const distMid1 = Number.isFinite(row1Dist) ? (row1Dist / 2) : 0;
+const w1 = windAtClimbDistance(env, distMid1);
+const windFrom1 = Number(w1.windFrom);
+const windKt1   = Number(w1.windKt);
+
+setP1(1, Number.isFinite(windFrom1) ? formatDeg3(windFrom1) : "");
+setP1(9, Number.isFinite(windKt1) ? String(Math.round(windKt1)) : "");
+
+// Distance
+setP1(89, Number.isFinite(row1Dist) ? fmtNum(row1Dist, 1) : "");
+
+// ✅ POH portion for row1 distance
+const p1 = pohClimbPortion(row1Dist);
+const time1 = p1.ok ? p1.timeMin : NaN;
+
+// ✅ GS must be consistent with distance + POH time (average GS)
+const gs1 =
+  (Number.isFinite(row1Dist) && Number.isFinite(time1) && time1 > 0)
+    ? (row1Dist / time1) * 60
+    : NaN;
+
+setP1(105, Number.isFinite(gs1) ? String(Math.round(gs1)) : "");
+setP1(113, Number.isFinite(time1) ? fmtNum(time1, 1) : "");
+
+if (Number.isFinite(time1)) elapsedMin += time1;
+setP1(121, (timeOffMin == null) ? "" : formatHHMM(timeOffMin + elapsedMin));
+
+// Fuel: POH first, fallback to GPH
+let fuel1 = p1.ok ? p1.fuelGal : NaN;
+if (!Number.isFinite(fuel1)) {
+  const climbGph = Number(env.climbGph ?? env.cruiseGph);
+  fuel1 =
+    (Number.isFinite(time1) && Number.isFinite(climbGph))
+      ? (time1 / 60) * climbGph
+      : NaN;
+}
+
+setP1(129, Number.isFinite(fuel1) ? fmtNum(fuel1, 2) : "");
+setFuelRemaining(0, 0, fuel1);
+
+  // -----------------------------
+  // ROW 2 (either cruise or continued climb)
+  // -----------------------------
+  let row2Dist = NaN;
+  if (Number.isFinite(fixDist) && Number.isFinite(tocDist)) {
+    row2Dist = tocBefore ? Math.max(0, fixDist - tocDist) : Math.max(0, tocDist - fixDist);
+  }
+
+// -----------------------------
+// ROW 2 (either cruise or continued climb)
+// -----------------------------
+
+setP1(90, Number.isFinite(row2Dist) ? fmtNum(row2Dist, 1) : "");
+
+let tas2, windFrom2, windKt2, gph2;
+
+if (tocBefore) {
+  // Row 2 is CRUISE (TOC -> first fix)
+  tas2 = Number(env.cruiseTasKt);
+  windFrom2 = Number(env.windFromDeg);
+  windKt2   = Number(env.windKt);
+  gph2      = Number(env.cruiseGph);
+} else {
+  // Row 2 is STILL CLIMB (first fix -> TOC)
+  tas2 = 74;
+
+  const distStart2 = Number(env.firstFixDistNm);
+  const distMid2 =
+    Number.isFinite(distStart2) && Number.isFinite(row2Dist)
+      ? distStart2 + (row2Dist / 2)
+      : distStart2;
+
+  const w2 = windAtClimbDistance(env, distMid2);
+  windFrom2 = Number(w2.windFrom);
+  windKt2   = Number(w2.windKt);
+
+  gph2 = Number(env.climbGph ?? env.cruiseGph);
+}
+
+// Wind + TAS boxes for row 2
+setP1(2,  Number.isFinite(windFrom2) ? formatDeg3(windFrom2) : "");
+setP1(10, Number.isFinite(windKt2) ? String(Math.round(windKt2)) : "");
+setP1(26, formatTAS(tas2));
+
+// GS for row 2 (your existing model)
+const gs2 = computeGsKt(tc1, tas2, windFrom2, windKt2);
+setP1(106, Number.isFinite(gs2) ? String(Math.round(gs2)) : "");
+
+// ✅ NEW: Compute row 2 headings (TC/WCA/TH/VAR/MH) instead of copying row 1
+{
+  const tc2 = tc1;
+  const tc2Ok = Number.isFinite(tc2);
+
+  const wca2 = tc2Ok ? computeWcaSignedDeg(tc2, windFrom2, windKt2, tas2) : 0;
+  const th2  = tc2Ok ? norm360(tc2 + wca2) : NaN;
+
+  const varTok2 = formatVarTokenFromPlan(plan);
+  const mh2 = Number.isFinite(th2) ? applyVariationToTH(th2, plan) : NaN;
+
+  setP1(34, tc2Ok ? formatDeg3(tc2) : "");
+  setP1(42, tc2Ok ? (formatWcaToken(wca2) || "0") : "");
+  setP1(50, Number.isFinite(th2) ? formatDeg3(th2) : "");
+  setP1(58, varTok2);
+  setP1(66, Number.isFinite(mh2) ? formatDeg3(mh2) : "");
+}
+
+// ✅ REPLACEMENT STARTS HERE
+let time2 = NaN;
+let fuel2 = NaN;
+
+if (!tocBefore) {
+  // Row 2 is STILL CLIMB (first fix -> TOC)
+  const p2 = pohClimbPortion(row2Dist);
+  time2 = p2.ok ? p2.timeMin : NaN;
+  fuel2 = p2.ok ? p2.fuelGal : NaN;
+
+  // If POH fuel missing, fallback to climbGPH
+  if (!Number.isFinite(fuel2)) {
+    const climbGph = Number(env.climbGph ?? env.cruiseGph);
+    fuel2 =
+      (Number.isFinite(time2) && Number.isFinite(climbGph))
+        ? (time2 / 60) * climbGph
+        : NaN;
+  }
+} else {
+  // Row 2 is CRUISE (TOC -> first fix)
+  time2 =
+    (Number.isFinite(row2Dist) && Number.isFinite(gs2) && gs2 > 0)
+      ? (row2Dist / gs2) * 60
+      : NaN;
+
+  const gph2 = Number(env.cruiseGph);
+  fuel2 =
+    (Number.isFinite(time2) && Number.isFinite(gph2))
+      ? (time2 / 60) * gph2
+      : NaN;
+}
+
+setP1(114, Number.isFinite(time2) ? fmtNum(time2, 1) : "");
+if (Number.isFinite(time2)) elapsedMin += time2;
+setP1(122, (timeOffMin == null) ? "" : formatHHMM(timeOffMin + elapsedMin));
+
+  setP1(130, Number.isFinite(fuel2) ? fmtNum(fuel2, 2) : "");
+  setFuelRemaining(0, 1, fuel2);
+
+  // -----------------------------
+  // ROWS 3–8 PAGE 1: plan.legs[0..5]
+  // -----------------------------
+
+  // -----------------------------
+  // ✅ Trip total + distance remaining (uses what YOU print on the navlog)
+  // Page 1: Row1 box 89, Row2 box 90, Rows3–8 boxes 91–96
+  // Remaining boxes: 97–104, Total box: 188
+  // -----------------------------
+  const distRowsP1 = new Array(8).fill(NaN);
+
+  // Row 1 distance (box 89) and row 2 distance (box 90) already computed above
+  distRowsP1[0] = Number(row1Dist);  // row 1
+  distRowsP1[1] = Number(row2Dist);  // row 2
+
+  for (let r = 0; r < 6; r++) {
+    const leg = displayLegs?.[r];
+    if (!leg) continue;
+
+    const origIdx = Number.isFinite(Number(leg._origIndex)) ? Number(leg._origIndex) : r;
+
+    const tc = Number(leg.tcDeg);
+    const dist = Number(leg.distNm);
+    distRowsP1[2 + r] = dist; // rows 3–8
+    const tcOk = Number.isFinite(tc);
+
+    const inClimb = isClimbDisplayLeg(r);
+    const tas = tasForDisplayLeg(r);
+
+    const w = windsForDisplayLeg(r);
+    const windFrom = Number(w.windFrom);
+    const windKt = Number(w.windKt);
+
+    // wind/temp boxes row3+ ids: 3..8, 11..16, 19..24
+    setP1(3 + r,  Number.isFinite(windFrom) ? formatDeg3(windFrom) : "");
+    setP1(11 + r, Number.isFinite(windKt) ? String(Math.round(windKt)) : "");
+
+    const tempRowC = inClimb
+      ? Number(computeAvgAltEnvironment(env)?.tempC)
+      : Number(env.tempCruiseC ?? computeAvgAltEnvironment(env)?.tempC);
+
+    setP1(19 + r, Number.isFinite(tempRowC) ? String(Math.round(tempRowC)) : "");
+
+    const wca = tcOk ? computeWcaSignedDeg(tc, windFrom, windKt, tas) : 0;
+    const th = tcOk ? norm360(tc + wca) : NaN;
+    const varTok = formatVarTokenFromPlan(plan);
+    const mh = tcOk ? applyVariationToTH(th, plan) : NaN;
+
+    setP1(35 + r, tcOk ? formatDeg3(tc) : "");
+    setP1(43 + r, tcOk ? formatWcaToken(wca) : "");
+    setP1(51 + r, Number.isFinite(th) ? formatDeg3(th) : "");
+    setP1(59 + r, varTok);
+    setP1(67 + r, Number.isFinite(mh) ? formatDeg3(mh) : "");
+    setP1(27 + r, formatTAS(tas));
+    setP1(91 + r, Number.isFinite(dist) ? fmtNum(dist, 1) : "");
+
+    const gs = computeGsKt(tc, tas, windFrom, windKt);
+    setP1(107 + r, Number.isFinite(gs) ? String(Math.round(gs)) : "");
+
+    const timeMin =
+      (Number.isFinite(dist) && Number.isFinite(gs) && gs > 0)
+        ? (dist / gs) * 60
+        : NaN;
+
+    setP1(115 + r, Number.isFinite(timeMin) ? fmtNum(timeMin, 1) : "");
+
+    if (Number.isFinite(timeMin)) elapsedMin += timeMin;
+    setP1(123 + r, (timeOffMin == null) ? "" : formatHHMM(timeOffMin + elapsedMin));
+
+    const gph = inClimb ? Number(env.climbGph ?? env.cruiseGph) : Number(env.cruiseGph);
+    const fuelGal =
+      (Number.isFinite(timeMin) && Number.isFinite(gph))
+        ? (timeMin / 60) * gph
+        : NaN;
+
+    setP1(131 + r, Number.isFinite(fuelGal) ? fmtNum(fuelGal, 2) : "");
+    setFuelRemaining(0, 2 + r, fuelGal);
+  }
+
+// -----------------------------
+// ✅ Trip Total for Box 188 = SUM OF ALL LEG DISTANCES (route legs only)
+// No TOC/TOD dependency, no row1/row2 dependency.
+// -----------------------------
+{
+  // ✅ Sum route legs (what you already do)
+  const legs = Array.isArray(plan?.legs) ? plan.legs : [];
+  const legsTotal = legs
+    .map(l => Number(l?.distNm))
+    .filter(d => Number.isFinite(d) && d > 0)
+    .reduce((a, b) => a + b, 0);
+
+  // ✅ Add Row 1 + Row 2 distances that your navlog already computes
+  const r1 = Number(row1Dist);
+  const r2 = Number(row2Dist);
+
+  const row1 = (Number.isFinite(r1) && r1 > 0) ? r1 : 0;
+  const row2 = (Number.isFinite(r2) && r2 > 0) ? r2 : 0;
+
+  const total = row1 + row2 + legsTotal;
+
+  setP1(188, total > 0 ? fmtNum(total, 1) : "");
+}
+  // -----------------------------
+  // PAGE 2 rows 1–8: route legs only (cruise-only)
+  // plan.legs[6..13] -> page2 rows 1..8 (33..40 etc)
+  // -----------------------------
+  if (POPULATE_PAGE2) {
+  for (let r = 0; r < 8; r++) {
+    const legIndex = 6 + r;
+    const leg = displayLegs?.[legIndex];
+    if (!leg) continue;
+
+    const tc = Number(leg.tcDeg);
+    const dist = Number(leg.distNm);
+    const tcOk = Number.isFinite(tc);
+
+    const tas = Number(env.cruiseTasKt);
+    const windFrom = Number(env.windFromDeg ?? 0);
+    const windKt = Number(env.windKt ?? 0);
+
+    // wind/temp boxes on page2 for rows 1..8 use ids 1..8, 9..16, 17..24
+    // but NOTE: your page2 row1 wind boxes are id 001/009/017, etc (same ids as page1)
+    setP2(1 + r,  Number.isFinite(windFrom) ? formatDeg3(windFrom) : "");
+    setP2(9 + r,  Number.isFinite(windKt) ? String(Math.round(windKt)) : "");
+    const tC = Number(env.tempCruiseC ?? computeAvgAltEnvironment(env)?.tempC);
+    setP2(17 + r, Number.isFinite(tC) ? String(Math.round(tC)) : "");
+
+    const wca = tcOk ? computeWcaSignedDeg(tc, windFrom, windKt, tas) : 0;
+    const th = tcOk ? norm360(tc + wca) : NaN;
+    const varTok = formatVarTokenFromPlan(plan);
+    const mh = tcOk ? applyVariationToTH(th, plan) : NaN;
+
+    // page2 headings table row mapping uses the same ids as page1
+    setP2(33 + r, tcOk ? formatDeg3(tc) : "");
+    setP2(41 + r, tcOk ? formatWcaToken(wca) : "");
+    setP2(49 + r, Number.isFinite(th) ? formatDeg3(th) : "");
+    setP2(57 + r, varTok);
+    setP2(65 + r, Number.isFinite(mh) ? formatDeg3(mh) : "");
+    setP2(25 + r, formatTAS(tas));
+    setP2(89 + r, Number.isFinite(dist) ? fmtNum(dist, 1) : "");
+
+    const gs = computeGsKt(tc, tas, windFrom, windKt);
+    setP2(105 + r, Number.isFinite(gs) ? String(Math.round(gs)) : "");
+
+    const timeMin =
+      (Number.isFinite(dist) && Number.isFinite(gs) && gs > 0)
+        ? (dist / gs) * 60
+        : NaN;
+
+    setP2(113 + r, Number.isFinite(timeMin) ? fmtNum(timeMin, 1) : "");
+
+    if (Number.isFinite(timeMin)) elapsedMin += timeMin;
+    setP2(121 + r, (timeOffMin == null) ? "" : formatHHMM(timeOffMin + elapsedMin));
+
+    const gph = Number(env.cruiseGph);
+    const fuelGal =
+      (Number.isFinite(timeMin) && Number.isFinite(gph))
+        ? (timeMin / 60) * gph
+        : NaN;
+
+    setP2(129 + r, Number.isFinite(fuelGal) ? fmtNum(fuelGal, 2) : "");
+    setFuelRemaining(1, r, fuelGal); // page2 remaining rows 0..7
+  }
+}
+
+// Force box 017 (page1) to surface OAT (you had this rule)
+setP1(17, Number.isFinite(Number(env.oatC)) ? String(Math.round(Number(env.oatC))) : "");
+
+// -----------------------------
+// TEMPERATURES (Page 1 + Page 2)
+// -----------------------------
+
+// Aloft temp (prefer env.tempCruiseC, else compute from aloftPts)
+const cruiseAlt = Number(env?.cruiseAltFt);
+
+const aloftTC = (Number.isFinite(cruiseAlt) && cruiseAlt < 6000)
+  ? tempAtAltFromSurfaceAnd6000(env, cruiseAlt)
+  : getCruiseTempC(env);
+
+const aloftText = Number.isFinite(aloftTC) ? String(Math.round(aloftTC)) : "";
+
+// Page 1: Rows 2–8 (018–024) = aloft only
+// Page 1: Row 2 (box 018) = aloft always
+setP1(18, aloftText);
+
+// Page 1: Rows 3–8 (boxes 019–024) = aloft ONLY if that route leg exists
+for (let r = 2; r < 8; r++) {
+  const leg = displayLegs?.[r - 2];   // rows 3–8 map to displayLegs[0..5]
+  setP1(17 + r, leg ? aloftText : "");
+}
+
+// Page 2: Rows 1–8 (017–024) = aloft only — but ONLY if that row exists
+if (POPULATE_PAGE2) {
+  for (let r = 0; r < 8; r++) {
+    const leg = displayLegs?.[6 + r];     // page2 row r corresponds to displayLegs[6+r]
+    setP2(17 + r, leg ? aloftText : "");  // no leg => leave blank
+  }
+}
+
+savePlan(plan);
+}
     window.addEventListener("focus", autopopulate);
 
     // INIT
-    window.addEventListener("DOMContentLoaded", () => {
-  try {
-    setHud("Drag to measure a box...");
-    drawAllBoxes();
-    autopopulate(); // populate boxes on page load
-  } catch (err) {
-    console.error("INIT ERROR:", err);
-    alert("Navlog init error — check console.");
-  }
-});
+    try {
+      setHud("Drag to measure a box...");
+      drawAllBoxes();
+      autopopulate();
+    } catch (err) {
+      console.error("INIT ERROR:", err);
+      alert("Navlog init error — check console.");
+    }
   </script>
 </body>
 </html>
-
-
-
-
-
-
