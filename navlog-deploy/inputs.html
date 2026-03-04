@@ -876,14 +876,24 @@
     }
 
     function enforceCheckpoint3IntoFirstLeg() {
-      const lockedFrom = getLockedFromCheckpoint3();
-      if (!lockedFrom) return;
-
       if (!Array.isArray(plan.legs)) plan.legs = [];
       if (plan.legs.length === 0) {
         plan.legs.push({ from:"", to:"", tcDeg:0, distNm:NaN, wcaDeg:0 });
       }
-      plan.legs[0].from = lockedFrom;
+
+      const tocBeforeFirstFix = !!plan.env.tocBeforeFirstFix;
+
+      if (tocBeforeFirstFix) {
+        // TOC before first fix: cp3 = first fix name, lock FROM to that
+        const lockedFrom = getLockedFromCheckpoint3();
+        if (!lockedFrom || lockedFrom === "—") return;
+        plan.legs[0].from = lockedFrom;
+      } else {
+        // TOC after first fix: lock FROM to the first fix name (not TOC)
+        const firstFix = String(plan.env.firstFixName || "").trim().toUpperCase();
+        if (!firstFix) return;
+        plan.legs[0].from = firstFix;
+      }
     }
 
     // -----------------------------
