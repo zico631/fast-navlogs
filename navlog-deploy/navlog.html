@@ -839,46 +839,24 @@ function windsForSegment({ kind, i, env, plan }) {
       };
     }
 
-        function getCruiseTempC(env) {
-// 1) If inputs.html already saved it, use it
-const raw = env?.tempCruiseC;
-if (raw !== "" && raw != null) {
-  const t = Number(raw);
-  if (Number.isFinite(t)) return t;
-}
+function getCruiseTempC(env) {
+  // 1) If inputs.html already saved it, use it
+  const raw = env?.tempCruiseC;
+  if (raw !== "" && raw != null) {
+    const t = Number(raw);
+    if (Number.isFinite(t)) return t;
+  }
 
-
-
-function tempAtAltFromSurfaceAnd6000(env, altFt) {
-  const oat = Number(env?.oatC);
-  const fieldElevFt = Number(env?.fieldElevFt);
-  const pts = Array.isArray(env?.aloftPts) ? env.aloftPts : [];
-
-  if (!Number.isFinite(altFt) || !Number.isFinite(oat) || !Number.isFinite(fieldElevFt)) return NaN;
-
-  // Find the 6000 ft temp from aloftPts
-  const t6 = pts
-    .map(p => ({ altFt: Number(p.altFt), tempC: p.tempC == null ? NaN : Number(p.tempC) }))
-    .filter(p => Number.isFinite(p.altFt) && Number.isFinite(p.tempC))
-    .find(p => p.altFt === 6000)?.tempC;
-
-  if (!Number.isFinite(t6)) return NaN;
-
-  // Linear interpolate between (fieldElevFt, oat) and (6000, t6)
-  if (6000 === fieldElevFt) return t6;
-
-  const f = (altFt - fieldElevFt) / (6000 - fieldElevFt);
-  return oat + (t6 - oat) * f;
-}
-
-  // 2) Otherwise, try to compute from aloftPts (same data you already fetched)
+  // 2) Otherwise compute from winds-aloft temps (env.aloftPts)
   const pts = Array.isArray(env?.aloftPts) ? env.aloftPts : [];
   const alt = Number(env?.cruiseAltFt);
   if (!Number.isFinite(alt) || pts.length === 0) return NaN;
 
-  // find two points that bracket cruise altitude
   const rows = pts
-    .map(p => ({ altFt: Number(p.altFt), tempC: (p.tempC == null ? NaN : Number(p.tempC)) }))
+    .map(p => ({
+      altFt: Number(p.altFt),
+      tempC: p.tempC == null ? NaN : Number(p.tempC)
+    }))
     .filter(p => Number.isFinite(p.altFt) && Number.isFinite(p.tempC))
     .sort((a, b) => a.altFt - b.altFt);
 
@@ -1155,3 +1133,4 @@ savePlan(plan);
   </script>
 </body>
 </html>
+
