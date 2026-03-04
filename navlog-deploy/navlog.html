@@ -1183,8 +1183,10 @@ for (let i = 0; i < 6; i++) {
   distRowsP1[0] = Number(row1Dist);
   distRowsP1[1] = Number(row2Dist);
 
+  const legOffset = (!tocBefore && cp3Txt === "TOC" && firstTo === "TOC") ? 1 : 0;
+
   for (let r = 0; r < 6; r++) {
-    const leg = displayLegs?.[r];
+    const leg = displayLegs?.[r + legOffset];
     if (!leg) continue;
 
     const tc = Number(leg.tcDeg);
@@ -1358,6 +1360,7 @@ for (let i = 0; i < 6; i++) {
   </script>
 </body>
 </html>
+
 
 
 
