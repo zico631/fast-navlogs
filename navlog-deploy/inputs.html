@@ -925,7 +925,7 @@
           const fromEl = tr.querySelector(".from");
 
           if (lockedFrom) {
-            fromEl.value = lockedFrom;
+            fromEl.value = plan.legs[0].from || lockedFrom;
             fromEl.readOnly = true;
           } else {
             fromEl.readOnly = false;
@@ -1791,3 +1791,4 @@
   </script>
 </body>
 </html>
+
