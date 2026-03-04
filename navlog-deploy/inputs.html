@@ -2166,14 +2166,18 @@ updateCruiseWindPill();
 
 }
 
-  document.getElementById("saveBtn").onclick = () => {
-    const decision = recalcTOCOrderAndPreview();
-    if (!decision.ok) {
-      alert(decision.error || "Fix TOC inputs first.");
-      return;
-    }
-    alert("Saved!");
-  };
+document.getElementById("saveBtn").onclick = () => {
+  // force a save no matter what
+  saveplan(plan);
+
+  // optional: still run TOC logic
+  const decision = recalcTOCOrderAndPreview();
+  if (!decision.ok) {
+    alert(decision.error || "Saved basic inputs, but TOC inputs need fixing.");
+    return;
+  }
+  alert("Saved!");
+};
 
   hydrateInputsFromPlan();
   computeLegHeadingsFromVariationOnly();
@@ -2185,5 +2189,6 @@ updateCruiseWindPill();
 </body>
 
 </html>
+
 
 
