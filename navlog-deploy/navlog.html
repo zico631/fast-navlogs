@@ -12,38 +12,6 @@
     .meta { font-size:13px; color:#555; }
 
     .wrap { display:flex; gap:16px; align-items:flex-start; }
-    .panel {
-      width: 380px;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      padding: 12px;
-      background: #fafafa;
-    }
-    textarea {
-      width: 100%;
-      height: 120px;
-      resize: vertical;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      font-size: 12px;
-      padding: 8px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-    }
-    .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
-    .small { font-size: 12px; color:#444; }
-    .list {
-      margin-top: 10px;
-      max-height: 260px;
-      overflow:auto;
-      border: 1px solid #e3e3e3;
-      border-radius: 8px;
-      background: white;
-      padding: 8px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      font-size: 12px;
-      white-space: pre;
-    }
-    label { font-size: 12px; color:#333; display:flex; gap:8px; align-items:center; margin-top:8px; }
 
     #pages { display:flex; flex-direction:column; gap:18px; }
     .page {
@@ -72,7 +40,6 @@
       font-family: Arial, Helvetica, sans-serif;
       font-size: 12px;
 
-      /* visible while debugging */
       color: black;
       font-weight: 400;
       text-shadow: none;
@@ -81,52 +48,13 @@
       outline: none;
     }
 
-    .drawRect {
-      position: absolute;
-      border: 2px solid rgba(0, 140, 255, 0.95);
-      background: rgba(0, 140, 255, 0.12);
-      border-radius: 4px;
-      z-index: 9999;
-      pointer-events: none;
-      box-sizing: border-box;
-    }
-
-    #coordBox{
-      position: fixed;
-      bottom: 10px;
-      left: 10px;
-      background: black;
-      color: lime;
-      padding: 6px 10px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      font-size: 14px;
-      z-index: 99999;
-      border-radius: 6px;
-      opacity: 0.92;
-      white-space: pre;
-      user-select: text;
-    }
-
     @media print {
-      .bar, .panel, #coordBox { display:none; }
+      .bar, #coordBox { display:none; }
       body { margin:0; }
       .page { border:none; page-break-after:always; }
       #pages { gap:0; }
-      .drawRect { display:none; }
       .mappedBox { outline: none; background: transparent; color: transparent; text-shadow:none; }
     }
-
-    /* =========================
-       NAVLOG RENDER MODE (default)
-       ========================= */
-    body.renderOnly .panel,
-    body.renderOnly .meta,
-    body.renderOnly #coordBox,
-    body.renderOnly .drawRect {
-      display: none !important;
-    }
-    body.renderOnly .wrap { gap: 0; }
-    body.renderOnly .page { margin: 0 auto; }
   </style>
 </head>
 
@@ -134,42 +62,10 @@
   <div class="bar">
     <button type="button" id="backBtn">← Back to Inputs</button>
     <button type="button" onclick="window.print()">Print</button>
-
-    <label style="display:flex;align-items:center;gap:8px">
-      <input type="checkbox" id="toggleTools">
-      Show mapping tools
-    </label>
-
-    <span class="meta">Navlog render page (auto-populates). Toggle tools only if you need remapping.</span>
+    <span class="meta">Navlog — auto-populates from your inputs.</span>
   </div>
 
   <div class="wrap">
-    <div class="panel">
-      <div class="small">Mapping tools (optional). Turn on “Show mapping tools” to use these.</div>
-
-      <div class="row">
-        <button id="copyHudBtn" type="button">Copy HUD</button>
-        <button id="pasteHudBtn" type="button">Paste HUD → Input</button>
-      </div>
-
-      <label>
-        <input type="checkbox" id="autoCopy" />
-        Auto-copy HUD after each drag
-      </label>
-
-      <textarea id="coordInput" placeholder="Paste TL/TR/BL/BR here..."></textarea>
-
-      <div class="row">
-        <button id="addBtn" type="button">Add Box</button>
-        <button id="undoBtn" type="button">Undo Last</button>
-        <button id="clearBtn" type="button">Clear All</button>
-        <button id="copyBtn" type="button">Copy Boxes JSON</button>
-      </div>
-
-      <div class="small" style="margin-top:10px;">Saved boxes:</div>
-      <div id="boxList" class="list"></div>
-    </div>
-
     <div id="pages"></div>
   </div>
 
@@ -180,52 +76,13 @@
 
     // ✅ DevTools access (module-safe)
     window.__planStore = { loadPlan, savePlan };
-    
 
     // Back button
     document.getElementById("backBtn").addEventListener("click", () => {
       window.location.href = "inputs.html";
     });
 
-    // Tools ON by default
-    document.body.classList.remove("renderOnly");
-    const toggle = document.getElementById("toggleTools");
-    toggle.checked = true;
-
-    toggle.addEventListener("change", () => {
-      if (toggle.checked) document.body.classList.remove("renderOnly");
-      else document.body.classList.add("renderOnly");
-    });
-
     const pct = (v) => (v * 100).toFixed(4) + "%";
-
-    const ensureHud = () => {
-      let box = document.getElementById("coordBox");
-      if (!box) {
-        box = document.createElement("div");
-        box.id = "coordBox";
-        document.body.appendChild(box);
-      }
-      return box;
-    };
-    const setHud = (text) => { ensureHud().textContent = text; };
-    const getHud = () => ensureHud().textContent || "";
-
-    async function copyText(text) {
-      if (!text) return false;
-      try {
-        await navigator.clipboard.writeText(text);
-        return true;
-      } catch {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        ta.remove();
-        return true;
-      }
-    }
 
     // Canvas pages (single page)
     const pagesEl = document.getElementById("pages");
@@ -242,8 +99,6 @@
     }
 
     const boxes = BOXES;
-
-    let ACTIVE_PAGE_INDEX = 0;
 
     function drawAllBoxes() {
       for (const pageEl of PAGES) {
@@ -264,265 +119,92 @@
           d.style.width = pct(b.right - b.left);
           d.style.height = pct(b.bottom - b.top);
 
-          const silentBoxes = new Set([
-            "073","074","075","076","077","078","079","080",
-            "081","082","083","084","085","086","087","088"
-          ]);
-
           d.textContent = "";
           pageEl.appendChild(d);
         }
       }
-
-      // keep boxList display (unchanged)
-      const list = boxes.map((b, i) => {
-        const tag = b.id ? String(b.id).padStart(3, "0") : String(i+1).padStart(3,"0");
-        return `${tag}: left=${b.left.toFixed(4)} top=${b.top.toFixed(4)} right=${b.right.toFixed(4)} bottom=${b.bottom.toFixed(4)}`;
-      }).join("\n");
-
-      document.getElementById("boxList").textContent = list || "(none yet)";
     }
-
-    function parseMostRecentTLTRBLBR(text) {
-      const re = /TL:\s*x\s*=\s*([0-9]*\.?[0-9]+)\s*y\s*=\s*([0-9]*\.?[0-9]+)[\s\S]*?TR:\s*x\s*=\s*([0-9]*\.?[0-9]+)\s*y\s*=\s*([0-9]*\.?[0-9]+)[\s\S]*?BL:\s*x\s*=\s*([0-9]*\.?[0-9]+)\s*y\s*=\s*([0-9]*\.?[0-9]+)[\s\S]*?BR:\s*x\s*=\s*([0-9]*\.?[0-9]+)\s*y\s*=\s*([0-9]*\.?[0-9]+)/gi;
-
-      let m, last = null;
-      while ((m = re.exec(text)) !== null) last = m;
-      if (!last) return null;
-
-      const xs = [Number(last[1]), Number(last[3]), Number(last[5]), Number(last[7])];
-      const ys = [Number(last[2]), Number(last[4]), Number(last[6]), Number(last[8])];
-
-      const left = Math.min(...xs);
-      const right = Math.max(...xs);
-      const top = Math.min(...ys);
-      const bottom = Math.max(...ys);
-
-      if (![left,right,top,bottom].every(n => Number.isFinite(n))) return null;
-      if (right <= left || bottom <= top) return null;
-
-      return { left, top, right, bottom };
-    }
-
-    PAGES.forEach((pageEl, idx) => {
-      pageEl.addEventListener("click", (e) => {
-        ACTIVE_PAGE_INDEX = idx;
-
-        const r = pageEl.getBoundingClientRect();
-        const xPct = (e.clientX - r.left) / r.width;
-        const yPct = (e.clientY - r.top) / r.height;
-
-        setHud(`PAGE=${idx}\nx=${xPct.toFixed(4)}  y=${yPct.toFixed(4)}`);
-      });
-    });
-
-    // Drag draw (enable on every page)
-    PAGES.forEach((pageEl, idx) => {
-      (function enableDragDrawBox(pageEl, idx) {
-        let rectEl = null;
-        let dragging = false;
-        let startX = 0, startY = 0;
-
-        function pctFromEvent(e) {
-          const r = pageEl.getBoundingClientRect();
-          const x = (e.clientX - r.left) / r.width;
-          const y = (e.clientY - r.top) / r.height;
-          return { x, y };
-        }
-
-        function setRect(left, top, right, bottom) {
-          const l = Math.min(left, right);
-          const t = Math.min(top, bottom);
-          const r = Math.max(left, right);
-          const b = Math.max(top, bottom);
-
-          rectEl.style.left = pct(l);
-          rectEl.style.top = pct(t);
-          rectEl.style.width = pct(r - l);
-          rectEl.style.height = pct(b - t);
-
-          setHud(
-            `PAGE=${idx}\n` +
-            `TL: x=${l.toFixed(4)} y=${t.toFixed(4)}\n` +
-            `TR: x=${r.toFixed(4)} y=${t.toFixed(4)}\n` +
-            `BL: x=${l.toFixed(4)} y=${b.toFixed(4)}\n` +
-            `BR: x=${r.toFixed(4)} y=${b.toFixed(4)}`
-          );
-        }
-
-        pageEl.addEventListener("pointerdown", (e) => {
-          if (e.button !== 0) return;
-          ACTIVE_PAGE_INDEX = idx;
-
-          if (rectEl) { rectEl.remove(); rectEl = null; }
-
-          dragging = true;
-          pageEl.setPointerCapture(e.pointerId);
-
-          const p = pctFromEvent(e);
-          startX = p.x;
-          startY = p.y;
-
-          rectEl = document.createElement("div");
-          rectEl.className = "drawRect";
-          pageEl.appendChild(rectEl);
-
-          setRect(startX, startY, startX + 0.0001, startY + 0.0001);
-          e.preventDefault();
-        });
-
-        pageEl.addEventListener("pointermove", (e) => {
-          if (!dragging || !rectEl) return;
-          const p = pctFromEvent(e);
-          setRect(startX, startY, p.x, p.y);
-        });
-
-        pageEl.addEventListener("pointerup", async (e) => {
-          if (!dragging) return;
-          dragging = false;
-          try { pageEl.releasePointerCapture(e.pointerId); } catch {}
-
-          if (document.getElementById("autoCopy").checked) {
-            await copyText(getHud());
-          }
-        });
-      })(pageEl, idx);
-    });
-
-    // Buttons
-    document.getElementById("copyHudBtn").addEventListener("click", async () => {
-      const ok = await copyText(getHud());
-      if (!ok) alert("Nothing in HUD yet. Drag a rectangle first.");
-    });
-
-    document.getElementById("pasteHudBtn").addEventListener("click", () => {
-      const hud = getHud();
-      if (!hud) return alert("HUD is empty. Drag a rectangle first.");
-      document.getElementById("coordInput").value = hud;
-    });
-
-    document.getElementById("addBtn").addEventListener("click", () => {
-      const inputEl = document.getElementById("coordInput");
-      const txt = inputEl.value.trim();
-
-      const box = parseMostRecentTLTRBLBR(txt);
-      if (!box) {
-        alert("Couldn't parse TL/TR/BL/BR. Make sure the text includes TL:, TR:, BL:, BR: lines.");
-        return;
-      }
-
-      boxes.push({ ...box, page: ACTIVE_PAGE_INDEX });
-      drawAllBoxes();
-      inputEl.value = "";
-      autopopulate();
-    });
-
-    document.getElementById("undoBtn").addEventListener("click", () => {
-      boxes.pop();
-      drawAllBoxes();
-      autopopulate();
-    });
-
-    document.getElementById("clearBtn").addEventListener("click", () => {
-      boxes.length = 0;
-      drawAllBoxes();
-    });
-
-    document.getElementById("copyBtn").addEventListener("click", async () => {
-      const json = JSON.stringify(boxes, null, 2);
-      await copyText(json);
-      alert("Copied boxes JSON to clipboard.");
-    });
 
   function getBoxOnPage(pageIndex, id) {
-  const key = String(id).padStart(3, "0");
-  const pageEl = PAGES?.[pageIndex];
-  if (!pageEl) return null;
-  return pageEl.querySelector(`[data-box="${key}"]`);
-}
+    const key = String(id).padStart(3, "0");
+    const pageEl = PAGES?.[pageIndex];
+    if (!pageEl) return null;
+    return pageEl.querySelector(`[data-box="${key}"]`);
+  }
 
   function setBoxTextOnEl(el, id, text) {
       if (!el) return;
 
-      // boxes that should stay completely quiet
       const silentBoxes = new Set([73, 81]);
 
       if (silentBoxes.has(Number(id))) {
         el.textContent = "";
         el.style.color = "";
         return;
+      }
+
+      el.textContent = text ?? "";
+
+      const nId = Number(id);
+
+      if (nId === 227) {
+        el.style.whiteSpace = "pre-wrap";
+        el.style.fontSize = "10px";
+        el.style.fontWeight = "500";
+        el.style.textAlign = "left";
+        el.style.alignItems = "flex-start";
+        el.style.justifyContent = "flex-start";
+        el.style.lineHeight = "1.1";
+        el.style.padding = "2px 3px";
+      }
+
+      if (nId >= 121 && nId <= 128) {
+        el.style.fontSize = "11px";
+        el.style.fontWeight = "400";
+        el.style.padding = "0";
+        el.style.textAlign = "center";
+        el.style.alignItems = "center";
+        el.style.justifyContent = "center";
+        el.style.lineHeight = "1";
+        el.style.transform = "translateY(1px)";
+      }
+      else if (nId >= 137 && nId <= 144) {
+        el.style.fontSize = "11px";
+        el.style.fontWeight = "400";
+        el.style.padding = "0";
+        el.style.textAlign = "center";
+        el.style.alignItems = "center";
+        el.style.justifyContent = "center";
+        el.style.lineHeight = "1";
+        el.style.transform = "translateY(1px)";
+      }
+      else {
+        el.style.fontSize = "";
+        el.style.fontWeight = "";
+        el.style.padding = "";
+        el.style.textAlign = "";
+        el.style.alignItems = "";
+        el.style.justifyContent = "";
+        el.style.lineHeight = "";
+        el.style.transform = "";
+      }
   }
 
-  el.textContent = text ?? "";
-
-  const nId = Number(id);
-
-  // ✅ TOD header box (227): left-to-right and allow newline
-  if (nId === 227) {
-  el.style.whiteSpace = "pre-wrap";   // ✅ respects \n and wraps
-  el.style.fontSize = "10px";
-  el.style.fontWeight = "500";
-  el.style.textAlign = "left";
-  el.style.alignItems = "flex-start";
-  el.style.justifyContent = "flex-start";
-  el.style.lineHeight = "1.1";
-  el.style.padding = "2px 3px";
-}
-
-  // ✅ ETA boxes (121–128): tweak however you want
-  if (nId >= 121 && nId <= 128) {
-    el.style.fontSize = "11px";
-    el.style.fontWeight = "400";
-    el.style.padding = "0";
-    el.style.textAlign = "center";
-    el.style.alignItems = "center";
-    el.style.justifyContent = "center";
-    el.style.lineHeight = "1";
-    el.style.transform = "translateY(1px)";
-  }
-  // ✅ Fuel Remaining boxes (137–144): tweak however you want
-  else if (nId >= 137 && nId <= 144) {
-    el.style.fontSize = "11px";
-    el.style.fontWeight = "400";
-    el.style.padding = "0";
-    el.style.textAlign = "center";
-    el.style.alignItems = "center";
-    el.style.justifyContent = "center";
-    el.style.lineHeight = "1";
-    el.style.transform = "translateY(1px)";
-  }
-  else {
-    el.style.fontSize = "";
-    el.style.fontWeight = "";
-    el.style.padding = "";
-    el.style.textAlign = "";
-    el.style.alignItems = "";
-    el.style.justifyContent = "";
-    el.style.lineHeight = "";
-    el.style.transform = "";
+  function setP(pageIndex, id, text) {
+    const el = getBoxOnPage(pageIndex, id);
+    setBoxTextOnEl(el, id, text);
   }
 
+  const setP1 = (id, text) => setP(0, id, text);
+  const setP2 = (id, text) => setP(1, id, text);
 
-}
+  function getBox(id) { return getBoxOnPage(0, id); }
+  function setBoxText(id, text) { return setP1(id, text); }
 
-// Page-aware writer
-function setP(pageIndex, id, text) {
-  const el = getBoxOnPage(pageIndex, id);
-  setBoxTextOnEl(el, id, text);
-}
-
-// Convenience wrappers
-const setP1 = (id, text) => setP(0, id, text);
-const setP2 = (id, text) => setP(1, id, text);
-
-// ✅ Backwards compatible (keeps ALL your existing code working)
-function getBox(id) { return getBoxOnPage(0, id); }
-function setBoxText(id, text) { return setP1(id, text); }
-// ✅ Expose helpers to DevTools console (because this is a module script)
-window.setP = setP;
-window.setP1 = setP1;
-window.setP2 = setP2;
-window.getBoxOnPage = getBoxOnPage;
+  window.setP = setP;
+  window.setP1 = setP1;
+  window.setP2 = setP2;
+  window.getBoxOnPage = getBoxOnPage;
 
     function fmtNum(n, decimals = 1) {
       const x = Number(n);
@@ -544,7 +226,7 @@ window.getBoxOnPage = getBoxOnPage;
     function norm180(deg) {
       let d = ((Number(deg) % 360) + 360) % 360;
       if (d > 180) d -= 360;
-      return d; // -180..+180
+      return d;
     }
 
     function formatTAS(v) {
@@ -582,13 +264,10 @@ function isLegInClimb(i, plan) {
   const env = plan?.env || {};
   const legs = Array.isArray(plan?.legs) ? plan.legs : [];
 
-  // ✅ total POH climb time (this MUST come from inputs.html)
   const climbTotalMin = Number(env.climbTimeMin);
 
-  // If we don't have POH climb time, fall back to "no climb"
   if (!Number.isFinite(climbTotalMin) || climbTotalMin <= 0) return false;
 
-  // If TOC is before first fix, then all route legs are cruise legs
   if (!!env.tocBeforeFirstFix) return false;
 
   const fixDist = Number(env.firstFixDistNm);
@@ -597,24 +276,18 @@ function isLegInClimb(i, plan) {
   if (!Number.isFinite(fixDist) || fixDist < 0) return false;
   if (!Number.isFinite(tocDist) || tocDist <= 0) return false;
 
-  // Portion of climb completed by the time you reach the first fix
   const fracToFix = Math.max(0, Math.min(1, fixDist / tocDist));
   const climbToFixMin = climbTotalMin * fracToFix;
 
-  // Remaining climb time available during legs (after first fix)
   let climbRemainingMin = Math.max(0, climbTotalMin - climbToFixMin);
 
-  // Walk legs in order, burning climbRemainingMin until it hits 0
   for (let k = 0; k < legs.length; k++) {
     const dist = Number(legs[k]?.distNm ?? 0);
     const tc   = Number(legs[k]?.tcDeg ?? NaN);
     if (!Number.isFinite(dist) || dist <= 0 || !Number.isFinite(tc)) continue;
 
-    // Your climb TAS convention
     const tas = 74;
 
-    // Midpoint distance-from-departure for wind sampling:
-    // dep->firstFix + prior legs + half of this leg
     let distFromDep = fixDist;
     for (let j = 0; j < k; j++) distFromDep += Number(legs[j]?.distNm ?? 0);
     distFromDep += dist / 2;
@@ -625,10 +298,8 @@ function isLegInClimb(i, plan) {
     const legTimeMin =
       (Number.isFinite(gs) && gs > 0) ? (dist / gs) * 60 : 0;
 
-    // If we're asking about THIS leg, it's a climb leg if climb time remains
     if (k === i) return climbRemainingMin > 0;
 
-    // Otherwise consume time and continue
     climbRemainingMin -= legTimeMin;
     if (climbRemainingMin <= 0) return false;
   }
@@ -643,7 +314,6 @@ function isLegInClimb(i, plan) {
     }
 
 function windsForSegment({ kind, i, env, plan }) {
-  // Row 1 uses surface wind
   if (kind === "row1") {
     return {
       windFrom: Number(env.surfaceWindFromDeg ?? 0),
@@ -651,9 +321,6 @@ function windsForSegment({ kind, i, env, plan }) {
     };
   }
 
-  // Row 2:
-  // - If TOC is before first fix => row 2 is cruise, use cruise wind (fallback to surface if missing)
-  // - Else row 2 is still climb, sample wind by distance
   if (kind === "row2") {
     if (!!env.tocBeforeFirstFix) {
       const wf = Number.isFinite(Number(env.windFromDeg))
@@ -676,9 +343,6 @@ function windsForSegment({ kind, i, env, plan }) {
     }
   }
 
-  // Rows 3+:
-  // - If leg is in climb, use interpolated avg-alt wind
-  // - Else cruise wind (fallback to surface if missing)
   if (kind === "row3plus") {
     if (isLegInClimb(i, plan)) {
       const avg = computeAvgAltEnvironment(env);
@@ -699,12 +363,12 @@ function windsForSegment({ kind, i, env, plan }) {
     return { windFrom: wf, windKt: wk };
   }
 
-  // Default fallback
   return {
     windFrom: Number(env.surfaceWindFromDeg ?? 0),
     windKt: Number(env.surfaceWindKt ?? 0)
   };
 }
+
     function computeGsKt(tcDeg, tasKt, windFromDeg, windKt) {
       const tc = Number(tcDeg);
       const tas = Number(tasKt);
@@ -767,9 +431,6 @@ function windsForSegment({ kind, i, env, plan }) {
       return norm360(th);
     }
 
-    // ==============================
-    // ✅ AVG-ALTITUDE WIND/TEMP MODEL
-    // ==============================
     function clamp01(x) { return Math.max(0, Math.min(1, x)); }
     function degToRad(d) { return (d * Math.PI) / 180; }
     function radToDeg(r) { return (r * 180) / Math.PI; }
@@ -839,66 +500,37 @@ function windsForSegment({ kind, i, env, plan }) {
       };
     }
 
-        function getCruiseTempC(env) {
-// 1) If inputs.html already saved it, use it
-const raw = env?.tempCruiseC;
-if (raw !== "" && raw != null) {
-  const t = Number(raw);
-  if (Number.isFinite(t)) return t;
-}
+    function getCruiseTempC(env) {
+      const raw = env?.tempCruiseC;
+      if (raw !== "" && raw != null) {
+        const t = Number(raw);
+        if (Number.isFinite(t)) return t;
+      }
 
+      const pts = Array.isArray(env?.aloftPts) ? env.aloftPts : [];
+      const alt = Number(env?.cruiseAltFt);
+      if (!Number.isFinite(alt) || pts.length === 0) return NaN;
 
+      const rows = pts
+        .map(p => ({ altFt: Number(p.altFt), tempC: (p.tempC == null ? NaN : Number(p.tempC)) }))
+        .filter(p => Number.isFinite(p.altFt) && Number.isFinite(p.tempC))
+        .sort((a, b) => a.altFt - b.altFt);
 
-function tempAtAltFromSurfaceAnd6000(env, altFt) {
-  const oat = Number(env?.oatC);
-  const fieldElevFt = Number(env?.fieldElevFt);
-  const pts = Array.isArray(env?.aloftPts) ? env.aloftPts : [];
+      if (rows.length === 0) return NaN;
 
-  if (!Number.isFinite(altFt) || !Number.isFinite(oat) || !Number.isFinite(fieldElevFt)) return NaN;
+      if (alt <= rows[0].altFt) return rows[0].tempC;
+      if (alt >= rows[rows.length - 1].altFt) return rows[rows.length - 1].tempC;
 
-  // Find the 6000 ft temp from aloftPts
-  const t6 = pts
-    .map(p => ({ altFt: Number(p.altFt), tempC: p.tempC == null ? NaN : Number(p.tempC) }))
-    .filter(p => Number.isFinite(p.altFt) && Number.isFinite(p.tempC))
-    .find(p => p.altFt === 6000)?.tempC;
+      for (let i = 0; i < rows.length - 1; i++) {
+        const a = rows[i], b = rows[i + 1];
+        if (alt >= a.altFt && alt <= b.altFt) {
+          const f = (alt - a.altFt) / (b.altFt - a.altFt);
+          return a.tempC + (b.tempC - a.tempC) * f;
+        }
+      }
 
-  if (!Number.isFinite(t6)) return NaN;
-
-  // Linear interpolate between (fieldElevFt, oat) and (6000, t6)
-  if (6000 === fieldElevFt) return t6;
-
-  const f = (altFt - fieldElevFt) / (6000 - fieldElevFt);
-  return oat + (t6 - oat) * f;
-}
-
-  // 2) Otherwise, try to compute from aloftPts (same data you already fetched)
-  const pts = Array.isArray(env?.aloftPts) ? env.aloftPts : [];
-  const alt = Number(env?.cruiseAltFt);
-  if (!Number.isFinite(alt) || pts.length === 0) return NaN;
-
-  // find two points that bracket cruise altitude
-  const rows = pts
-    .map(p => ({ altFt: Number(p.altFt), tempC: (p.tempC == null ? NaN : Number(p.tempC)) }))
-    .filter(p => Number.isFinite(p.altFt) && Number.isFinite(p.tempC))
-    .sort((a, b) => a.altFt - b.altFt);
-
-  if (rows.length === 0) return NaN;
-
-  // clamp low/high
-  if (alt <= rows[0].altFt) return rows[0].tempC;
-  if (alt >= rows[rows.length - 1].altFt) return rows[rows.length - 1].tempC;
-
-  // linear interpolate
-  for (let i = 0; i < rows.length - 1; i++) {
-    const a = rows[i], b = rows[i + 1];
-    if (alt >= a.altFt && alt <= b.altFt) {
-      const f = (alt - a.altFt) / (b.altFt - a.altFt);
-      return a.tempC + (b.tempC - a.tempC) * f;
+      return NaN;
     }
-  }
-
-  return NaN;
-}
 
     function windAtAlt(env, altFt) {
       const fieldElevFt = Number(env.fieldElevFt);
@@ -956,12 +588,8 @@ function buildDisplayLegs(plan) {
   const tocDist = Number(env.climbDistWindNm);
   const tod = env.tod;
 
-  // -----------------------------
-  // ✅ 1) TOC split (only if TOC is AFTER first fix and we have route legs)
-  // TOC position measured from first fix along the route legs.
-  // -----------------------------
   if (!tocBefore && out.length > 0 && Number.isFinite(fixDist) && Number.isFinite(tocDist) && tocDist > fixDist) {
-    let tocFromFirstFixNm = tocDist - fixDist; // distance from first fix to TOC along route
+    let tocFromFirstFixNm = tocDist - fixDist;
 
     if (Number.isFinite(tocFromFirstFixNm) && tocFromFirstFixNm > 0) {
       let cum = 0;
@@ -971,12 +599,10 @@ function buildDisplayLegs(plan) {
         if (!Number.isFinite(d) || d <= 0) continue;
 
         if (cum + d >= tocFromFirstFixNm) {
-          // TOC is inside this leg
-          const a = tocFromFirstFixNm - cum; // from leg start to TOC
-          const b = d - a;                   // TOC to leg end
+          const a = tocFromFirstFixNm - cum;
+          const b = d - a;
           const original = out[i];
 
-          // (FROM -> TOC) = climb remainder
           const legA = {
             ...original,
             to: "TOC",
@@ -985,7 +611,6 @@ function buildDisplayLegs(plan) {
             _phase: "climb"
           };
 
-          // (TOC -> TO) = cruise
           const legB = {
             ...original,
             from: "TOC",
@@ -996,7 +621,6 @@ function buildDisplayLegs(plan) {
 
           out.splice(i, 1, legA, legB);
 
-          // Everything after TOC is cruise unless TOD later changes things
           for (let k = i + 1; k < out.length; k++) {
             out[k]._phase = out[k]._phase || "cruise";
           }
@@ -1008,14 +632,10 @@ function buildDisplayLegs(plan) {
     }
   }
 
-  // If TOC was before first fix, all route legs are cruise by definition
   if (tocBefore) {
     for (let i = 0; i < out.length; i++) out[i]._phase = out[i]._phase || "cruise";
   }
 
-  // -----------------------------
-  // ✅ 2) TOD split (your existing logic)
-  // -----------------------------
   if (tod?.ok) {
     const li = Number(tod.legIndex);
     const a = Number(tod.distFromLegStart);
@@ -1047,36 +667,25 @@ function buildDisplayLegs(plan) {
     }
   }
 
-  // -----------------------------
-// ✅ 3) PHASE TAGGING PASS (single source of truth)
-// Ensures TOC -> next checkpoint is CRUISE.
-// -----------------------------
-if (tocBefore) {
-  // If TOC is before first fix, all route legs are cruise
-  out.forEach(l => { l._phase = "cruise"; });
-} else {
-  // Find the leg that ENDS at TOC
-  const idxTocEnd = out.findIndex(l =>
-    String(l?.to || "").trim().toUpperCase() === "TOC"
-  );
-
-  // If we have a TOC marker, everything up through that leg is climb
-  if (idxTocEnd >= 0) {
-    out.forEach((l, i) => {
-      l._phase = (i <= idxTocEnd) ? "climb" : "cruise";
-    });
+  if (tocBefore) {
+    out.forEach(l => { l._phase = "cruise"; });
   } else {
-    // If TOC isn't present in legs for any reason, default to cruise
-    out.forEach(l => { l._phase = l._phase || "cruise"; });
+    const idxTocEnd = out.findIndex(l =>
+      String(l?.to || "").trim().toUpperCase() === "TOC"
+    );
+
+    if (idxTocEnd >= 0) {
+      out.forEach((l, i) => {
+        l._phase = (i <= idxTocEnd) ? "climb" : "cruise";
+      });
+    } else {
+      out.forEach(l => { l._phase = l._phase || "cruise"; });
+    }
   }
-}
 
   return out;
 }
 
-// other helper functions above...
-
-// ✅ paste it RIGHT HERE
 function tempAtAltFromSurfaceAnd6000(env, altFt) {
   const oat = Number(env?.oatC);
   const fieldElevFt = Number(env?.fieldElevFt);
@@ -1097,118 +706,93 @@ function tempAtAltFromSurfaceAnd6000(env, altFt) {
   return oat + (t6 - oat) * f;
 }
 
-
-
   function autopopulate() {
   const plan = loadPlan();
   if (!plan || !plan.env) return;
 
   const env = plan.env;
 
+  const climbTimeTotalMin = Number(env.climbTimeMin);
+  const climbFuelTotalGal = Number(env.climbFuelGal);
+  const climbDistTotalNm  = Number(env.climbDistWindNm ?? env.climbDistStillAirNm);
 
+  function pohClimbPortion(distNm) {
+    const d = Number(distNm);
 
-  // -----------------------------
-// POH CLIMB TOTALS (from inputs.html -> env)
-// -----------------------------
-const climbTimeTotalMin = Number(env.climbTimeMin);
-const climbFuelTotalGal = Number(env.climbFuelGal);
-const climbDistTotalNm  = Number(env.climbDistWindNm ?? env.climbDistStillAirNm);
+    if (
+      !Number.isFinite(d) || d < 0 ||
+      !Number.isFinite(climbTimeTotalMin) ||
+      !Number.isFinite(climbDistTotalNm) || climbDistTotalNm <= 0
+    ) {
+      return { timeMin: NaN, fuelGal: NaN, ok: false };
+    }
 
-function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+    const frac = clamp01(d / climbDistTotalNm);
+    const timeMin = climbTimeTotalMin * frac;
 
-// Returns { timeMin, fuelGal } for a given climb distance portion
-function pohClimbPortion(distNm) {
-  const d = Number(distNm);
+    let fuelGal = NaN;
+    if (Number.isFinite(climbFuelTotalGal)) fuelGal = climbFuelTotalGal * frac;
 
-  if (
-    !Number.isFinite(d) || d < 0 ||
-    !Number.isFinite(climbTimeTotalMin) ||
-    !Number.isFinite(climbDistTotalNm) || climbDistTotalNm <= 0
-  ) {
-    return { timeMin: NaN, fuelGal: NaN, ok: false };
+    return { timeMin, fuelGal, ok: true };
   }
 
-  const frac = clamp01(d / climbDistTotalNm);
-  const timeMin = climbTimeTotalMin * frac;
-
-  let fuelGal = NaN;
-  if (Number.isFinite(climbFuelTotalGal)) fuelGal = climbFuelTotalGal * frac;
-
-  return { timeMin, fuelGal, ok: true };
-}
   const displayLegs = buildDisplayLegs(plan);
 
+  const up = (s) => String(s || "").trim().toUpperCase();
 
+  const tocEndIndex = Array.isArray(displayLegs)
+    ? displayLegs.findIndex(l => up(l?.to) === "TOC")
+    : -1;
 
-
-  // ------------------------------------------------------------
-// ✅ CLIMB ENDS AT TOC (not time-based)
-// If displayLegs contains a segment that ENDS at "TOC", then:
-// - indices <= that segment are climb (74 TAS)
-// - indices  > that segment are cruise TAS
-// ------------------------------------------------------------
-const up = (s) => String(s || "").trim().toUpperCase();
-
-// index of the segment that ENDS at TOC (e.g. STACKS→TOC)
-const tocEndIndex = Array.isArray(displayLegs)
-  ? displayLegs.findIndex(l => up(l?.to) === "TOC")
-  : -1;
-
-// ✅ HARD OVERRIDE: once a segment STARTS at TOC, it's CRUISE.
-// This fixes the "TOC after first fix" case where climb tagging can bleed forward.
-if (Array.isArray(displayLegs)) {
-  let seenTocStart = false;
-  for (let i = 0; i < displayLegs.length; i++) {
-    const from = up(displayLegs[i]?.from);
-    if (from === "TOC") seenTocStart = true;
-    if (seenTocStart) displayLegs[i]._phase = "cruise";
-  }
-}
-
-function isClimbDisplayLeg(displayIndex) {
-  const leg = displayLegs?.[displayIndex];
-  if (!leg) return false;
-
-  // ✅ HARD RULE: anything that STARTS at TOC is cruise
-  if (up(leg.from) === "TOC") return false;
-
-  // ✅ If TOC exists, climb is only up through the segment that ENDS at TOC
-  if (tocEndIndex >= 0) return displayIndex <= tocEndIndex;
-
-  // Otherwise fall back to your original time-based climb logic
-  const origIdx = Number.isFinite(Number(leg?._origIndex))
-    ? Number(leg._origIndex)
-    : displayIndex;
-
-  return isLegInClimb(origIdx, plan);
-}
-function tasForDisplayLeg(displayIndex) {
-  if (isClimbDisplayLeg(displayIndex)) return 74;
-  const cruise = Number(env?.cruiseTasKt);
-  return Number.isFinite(cruise) ? cruise : NaN;
-}
-
-function windsForDisplayLeg(displayIndex) {
-  // During climb: use your avg-alt model
-  if (isClimbDisplayLeg(displayIndex)) {
-    const avg = computeAvgAltEnvironment(env);
-    return {
-      windFrom: Number(avg?.windFromDeg ?? env.surfaceWindFromDeg ?? 0),
-      windKt:   Number(avg?.windKt ?? env.surfaceWindKt ?? 0)
-    };
+  if (Array.isArray(displayLegs)) {
+    let seenTocStart = false;
+    for (let i = 0; i < displayLegs.length; i++) {
+      const from = up(displayLegs[i]?.from);
+      if (from === "TOC") seenTocStart = true;
+      if (seenTocStart) displayLegs[i]._phase = "cruise";
+    }
   }
 
-  // After TOC: cruise winds (fallback to surface)
-  const wf = Number.isFinite(Number(env.windFromDeg))
-    ? Number(env.windFromDeg)
-    : Number(env.surfaceWindFromDeg ?? 0);
+  function isClimbDisplayLeg(displayIndex) {
+    const leg = displayLegs?.[displayIndex];
+    if (!leg) return false;
 
-  const wk = Number.isFinite(Number(env.windKt))
-    ? Number(env.windKt)
-    : Number(env.surfaceWindKt ?? 0);
+    if (up(leg.from) === "TOC") return false;
 
-  return { windFrom: wf, windKt: wk };
-}
+    if (tocEndIndex >= 0) return displayIndex <= tocEndIndex;
+
+    const origIdx = Number.isFinite(Number(leg?._origIndex))
+      ? Number(leg._origIndex)
+      : displayIndex;
+
+    return isLegInClimb(origIdx, plan);
+  }
+
+  function tasForDisplayLeg(displayIndex) {
+    if (isClimbDisplayLeg(displayIndex)) return 74;
+    const cruise = Number(env?.cruiseTasKt);
+    return Number.isFinite(cruise) ? cruise : NaN;
+  }
+
+  function windsForDisplayLeg(displayIndex) {
+    if (isClimbDisplayLeg(displayIndex)) {
+      const avg = computeAvgAltEnvironment(env);
+      return {
+        windFrom: Number(avg?.windFromDeg ?? env.surfaceWindFromDeg ?? 0),
+        windKt:   Number(avg?.windKt ?? env.surfaceWindKt ?? 0)
+      };
+    }
+
+    const wf = Number.isFinite(Number(env.windFromDeg))
+      ? Number(env.windFromDeg)
+      : Number(env.surfaceWindFromDeg ?? 0);
+
+    const wk = Number.isFinite(Number(env.windKt))
+      ? Number(env.windKt)
+      : Number(env.surfaceWindKt ?? 0);
+
+    return { windFrom: wf, windKt: wk };
+  }
 
   const POPULATE_PAGE2 = (() => {
     const legs = Array.isArray(plan?.legs) ? plan.legs : [];
@@ -1223,23 +807,20 @@ function windsForDisplayLeg(displayIndex) {
     return true;
   })();
 
-const todHdr = env.tod;
+  const todHdr = env.tod;
 
-if (todHdr?.ok && Number.isFinite(Number(todHdr.todNm))) {
-  const todLine =
-    `TOD ${Number(todHdr.todNm).toFixed(1)} NM before ${String(todHdr.destIcao || "").toUpperCase()} — ` +
-    `${String(todHdr.from || "").toUpperCase()}→${String(todHdr.to || "").toUpperCase()} (+${Number(todHdr.distFromLegStart || 0).toFixed(1)} NM)`;
+  if (todHdr?.ok && Number.isFinite(Number(todHdr.todNm))) {
+    const todLine =
+      `TOD ${Number(todHdr.todNm).toFixed(1)} NM before ${String(todHdr.destIcao || "").toUpperCase()} — ` +
+      `${String(todHdr.from || "").toUpperCase()}→${String(todHdr.to || "").toUpperCase()} (+${Number(todHdr.distFromLegStart || 0).toFixed(1)} NM)`;
 
-  setP1(227, todLine);
-  if (POPULATE_PAGE2) setP2(227, todLine);
-} else {
-  setP1(227, "");
-  if (POPULATE_PAGE2) setP2(227, "");
-}
+    setP1(227, todLine);
+    if (POPULATE_PAGE2) setP2(227, todLine);
+  } else {
+    setP1(227, "");
+    if (POPULATE_PAGE2) setP2(227, "");
+  }
 
-  // -----------------------------
-  // RUNNING STATE (recomputed each run)
-  // -----------------------------
   const startFuelGal = Number(
     env.fuelOnBoardGal ??
     env.fuelTakeoffGal ??
@@ -1260,108 +841,84 @@ if (todHdr?.ok && Number.isFinite(Number(todHdr.todNm))) {
     setP(pageIndex, remainBox, Number.isFinite(remaining) ? fmtNum(Math.max(0, remaining), 2) : "");
   }
 
-  // -----------------------------
-  // TIME OFF (box 189) - page 2 only if enabled
-  // -----------------------------
   const timeOffStr = String(env.timeOffLocal || "").trim();
   setP1(189, timeOffStr);
   if (POPULATE_PAGE2) setP2(189, timeOffStr);
 
   const timeOffMin = parseHHMM(timeOffStr);
 
-// -----------------------------
-// CHECKPOINT COLUMN (161–169)
-// -----------------------------
-const dep = (env.depIcao || "").toUpperCase();
-const firstFix = (env.firstFixName || "").toUpperCase();
-const tocBefore = !!env.tocBeforeFirstFix;
+  const dep = (env.depIcao || "").toUpperCase();
+  const firstFix = (env.firstFixName || "").toUpperCase();
+  const tocBefore = !!env.tocBeforeFirstFix;
 
-const cp1 = dep || "—";
-const cp2 = tocBefore ? "TOC" : (firstFix || "FIX");
-const cp3 = tocBefore ? (firstFix || "FIX") : "TOC";
+  const cp1 = dep || "—";
+  const cp2 = tocBefore ? "TOC" : (firstFix || "FIX");
+  const cp3 = tocBefore ? (firstFix || "FIX") : "TOC";
 
-// ✅ Page 1 always uses the “start of flight” logic
-setP1(161, cp1);
-setP1(162, cp2);
-setP1(163, cp3);
+  setP1(161, cp1);
+  setP1(162, cp2);
+  setP1(163, cp3);
 
-// page 1 continuation rows (164–169)
-// Prevent duplicate TOC if cp3 already printed TOC
-const cp3Txt = String(cp3 || "").trim().toUpperCase();
-const firstTo = String(displayLegs?.[0]?.to || "").trim().toUpperCase();
-const skipFirst = (cp3Txt === "TOC" && firstTo === "TOC") ? 1 : 0;
-
-for (let i = 0; i < 6; i++) {
-  const boxId = 164 + i;
-  const toFix = String(displayLegs?.[i + skipFirst]?.to ?? "").trim().toUpperCase();
-  setP1(boxId, toFix || "");
-}
-
-// ✅ Page 2 only if enabled, and it CONTINUES where page 1 ended
-if (POPULATE_PAGE2) {
-  // first box on page 2 repeats the last checkpoint on page 1
-  const lastOnP1 = getBoxOnPage(0, 169)?.textContent ?? "";
-  setP2(161, lastOnP1);
-
-  // then continue with legs[6..13].to
-  setP2(162, String(displayLegs?.[6]?.to ?? "").trim().toUpperCase());
-  setP2(163, String(displayLegs?.[7]?.to ?? "").trim().toUpperCase());
+  const cp3Txt = String(cp3 || "").trim().toUpperCase();
+  const firstTo = String(displayLegs?.[0]?.to || "").trim().toUpperCase();
+  const skipFirst = (cp3Txt === "TOC" && firstTo === "TOC") ? 1 : 0;
 
   for (let i = 0; i < 6; i++) {
-    const boxId = 164 + i;          // 164..169
-    const legIx = 8 + i;            // legs[8..13]
-    const toFix = String(displayLegs?.[legIx]?.to ?? "").trim().toUpperCase();
-    setP2(boxId, toFix || "");
+    const boxId = 164 + i;
+    const toFix = String(displayLegs?.[i + skipFirst]?.to ?? "").trim().toUpperCase();
+    setP1(boxId, toFix || "");
   }
-}
 
+  if (POPULATE_PAGE2) {
+    const lastOnP1 = getBoxOnPage(0, 169)?.textContent ?? "";
+    setP2(161, lastOnP1);
 
-  // -----------------------------
-// COURSE / ROUTE (TC) COLUMN (153–160)
-// -----------------------------
-// ✅ Row 1/2 TC fallback: env.firstFixTcDeg -> displayLegs[0].tcDeg
-const tcRow1 = Number(
-  (env.firstFixTcDeg != null && !Number.isNaN(Number(env.firstFixTcDeg)))
-    ? Number(env.firstFixTcDeg)
-    : Number(displayLegs?.[0]?.tcDeg)
-);
+    setP2(162, String(displayLegs?.[6]?.to ?? "").trim().toUpperCase());
+    setP2(163, String(displayLegs?.[7]?.to ?? "").trim().toUpperCase());
 
-const tcRow1Txt = Number.isFinite(tcRow1) ? formatDeg3(tcRow1) : "";
+    for (let i = 0; i < 6; i++) {
+      const boxId = 164 + i;
+      const legIx = 8 + i;
+      const toFix = String(displayLegs?.[legIx]?.to ?? "").trim().toUpperCase();
+      setP2(boxId, toFix || "");
+    }
+  }
 
-setP1(153, tcRow1Txt);
-setP1(154, tcRow1Txt);
+  const fixDist = Number(env.firstFixDistNm);
+  const tocDist = Number(env.climbDistWindNm);
+  const fieldElevFt = Number(env.fieldElevFt);
+  const cruiseAltFt = Number(env.cruiseAltFt);
 
-  // rows 3–8 come from plan.legs[0..5]
+  const tcRow1 = Number(
+    (env.firstFixTcDeg != null && !Number.isNaN(Number(env.firstFixTcDeg)))
+      ? Number(env.firstFixTcDeg)
+      : Number(displayLegs?.[0]?.tcDeg)
+  );
+
+  const tcRow1Txt = Number.isFinite(tcRow1) ? formatDeg3(tcRow1) : "";
+
+  setP1(153, tcRow1Txt);
+  setP1(154, tcRow1Txt);
+
   for (let i = 0; i < 6; i++) {
     const boxId = 155 + i;
     const tc = Number(displayLegs?.[i]?.tcDeg);
     setP1(boxId, Number.isFinite(tc) ? formatDeg3(tc) : "");
   }
 
-  
-if (POPULATE_PAGE2) {
-  // ✅ Page 2 rows 1–2 must come from displayLegs[6] and displayLegs[7]
-  const tcP2r1 = Number(displayLegs?.[6]?.tcDeg);
-  const tcP2r2 = Number(displayLegs?.[7]?.tcDeg);
+  if (POPULATE_PAGE2) {
+    const tcP2r1 = Number(displayLegs?.[6]?.tcDeg);
+    const tcP2r2 = Number(displayLegs?.[7]?.tcDeg);
 
-  setP2(153, Number.isFinite(tcP2r1) ? formatDeg3(tcP2r1) : "");
-  setP2(154, Number.isFinite(tcP2r2) ? formatDeg3(tcP2r2) : "");
+    setP2(153, Number.isFinite(tcP2r1) ? formatDeg3(tcP2r1) : "");
+    setP2(154, Number.isFinite(tcP2r2) ? formatDeg3(tcP2r2) : "");
 
-  // ✅ Page 2 rows 3–8 remain displayLegs[8..13]
-  for (let i = 0; i < 6; i++) {
-    const boxId = 155 + i;              // 155..160
-    const tc = Number(displayLegs?.[8 + i]?.tcDeg);
-    setP2(boxId, Number.isFinite(tc) ? formatDeg3(tc) : "");
+    for (let i = 0; i < 6; i++) {
+      const boxId = 155 + i;
+      const tc = Number(displayLegs?.[8 + i]?.tcDeg);
+      setP2(boxId, Number.isFinite(tc) ? formatDeg3(tc) : "");
+    }
   }
-}
-
-  // -----------------------------
-  // ALTITUDE COLUMN (145–152)
-  // -----------------------------
-  const fixDist = Number(env.firstFixDistNm);
-  const tocDist = Number(env.climbDistWindNm);
-  const fieldElevFt = Number(env.fieldElevFt);
-  const cruiseAltFt = Number(env.cruiseAltFt);
 
   let firstFixAltFt = NaN;
 
@@ -1387,312 +944,251 @@ if (POPULATE_PAGE2) {
 
   setP1(145, alt145Txt);
   setP1(146, Number.isFinite(cruiseAltFt) ? String(Math.round(cruiseAltFt)) : "");
-  
 
-// -----------------------------
-// ✅ TOD altitude override for final segment(s)
-// Boxes 147–152 correspond to page 1 rows 3–8 (displayLegs[0..5])
-// -----------------------------
-const destTpaFt = Number(env.destTpaFt);
-const todOk = !!env.tod?.ok && Number.isFinite(destTpaFt);
+  const destTpaFt = Number(env.destTpaFt);
+  const todOk = !!env.tod?.ok && Number.isFinite(destTpaFt);
 
-// Find where the "after TOD" segment begins inside displayLegs
-const todStartIndex = todOk
-  ? displayLegs.findIndex(l => String(l?.from || "").trim().toUpperCase() === "TOD")
-  : -1;
+  const todStartIndex = todOk
+    ? displayLegs.findIndex(l => String(l?.from || "").trim().toUpperCase() === "TOD")
+    : -1;
 
-function altForDisplayLegIndex(displayLegIndex) {
-  const leg = displayLegs?.[displayLegIndex];
+  function altForDisplayLegIndex(displayLegIndex) {
+    const leg = displayLegs?.[displayLegIndex];
 
-    // ✅ If this row does not correspond to a real leg, leave blank
-  if (!leg || !Number.isFinite(leg.distNm) || leg.distNm <= 0) {
-    return "";
-  }
-
-
-  // Default behavior: cruise altitude
-  if (!Number.isFinite(cruiseAltFt)) return "";
-  let alt = cruiseAltFt;
-
-  const destIcao = String(env.destIcao || "").trim().toUpperCase();
-  const toIcao   = String(leg?.to || "").trim().toUpperCase();
-  const fromIcao = String(leg?.from || "").trim().toUpperCase();
-
-  // ✅ 1) Only force TPA on the FINAL leg that actually goes TO the destination
-  if (todOk && Number.isFinite(destTpaFt) && destIcao && toIcao === destIcao) {
-    return String(Math.round(destTpaFt));
-  }
-
-  // ✅ 2) If no TOD marker exists, just show cruise
-  if (!(todOk && todStartIndex >= 0)) {
-    return String(Math.round(alt));
-  }
-
-  // ✅ 3) BEFORE TOD => cruise
-  if (displayLegIndex < todStartIndex) {
-    return String(Math.round(alt));
-  }
-
-  // ✅ 4) AFTER TOD => estimate altitude at the END of this leg (arrival at next fix)
-  let distFromTodNm = 0;
-  for (let i = todStartIndex; i <= displayLegIndex; i++) {
-    const d = Number(displayLegs?.[i]?.distNm);
-    if (Number.isFinite(d)) distFromTodNm += d;
-  }
-
-  // Simple deterministic descent model:
-  // ft per NM = 60 * VS / GS
-  const vsFpm = 500;
-  const gsKt  = 90;
-  const ftPerNm = (60 * Math.abs(vsFpm)) / Math.max(1, gsKt);
-
-  alt = cruiseAltFt - (ftPerNm * distFromTodNm);
-
-  // Don’t go below TPA if we have it
-  if (Number.isFinite(destTpaFt)) alt = Math.max(destTpaFt, alt);
-
-  return Number.isFinite(alt) ? String(Math.round(alt)) : "";
-}
-
-// Page 1 rows 3–8 => boxes 147–152 map to displayLegs[0..5]
-for (let r = 0; r < 6; r++) {
-  const boxId = 147 + r;     // 147..152
-  const txt = altForDisplayLegIndex(r);
-  setP1(boxId, txt);
-}
-
-// Page 2 rows 1–8 => boxes 145–152 map to displayLegs[6..13]
-if (POPULATE_PAGE2) {
-  for (let r = 0; r < 8; r++) {
-    const boxId = 145 + r;         // 145..152
-    const displayIndex = 6 + r;    // page2 rows map to displayLegs[6..13]
-    const leg = displayLegs?.[displayIndex];
-
-    // ✅ No leg => leave altitude blank
-    if (!leg) {
-      setP2(boxId, "");
-      continue;
+    if (!leg || !Number.isFinite(leg.distNm) || leg.distNm <= 0) {
+      return "";
     }
 
-    setP2(boxId, altForDisplayLegIndex(displayIndex));
+    if (!Number.isFinite(cruiseAltFt)) return "";
+    let alt = cruiseAltFt;
+
+    const destIcao = String(env.destIcao || "").trim().toUpperCase();
+    const toIcao   = String(leg?.to || "").trim().toUpperCase();
+
+    if (todOk && Number.isFinite(destTpaFt) && destIcao && toIcao === destIcao) {
+      return String(Math.round(destTpaFt));
+    }
+
+    if (!(todOk && todStartIndex >= 0)) {
+      return String(Math.round(alt));
+    }
+
+    if (displayLegIndex < todStartIndex) {
+      return String(Math.round(alt));
+    }
+
+    let distFromTodNm = 0;
+    for (let i = todStartIndex; i <= displayLegIndex; i++) {
+      const d = Number(displayLegs?.[i]?.distNm);
+      if (Number.isFinite(d)) distFromTodNm += d;
+    }
+
+    const vsFpm = 500;
+    const gsKt  = 90;
+    const ftPerNm = (60 * Math.abs(vsFpm)) / Math.max(1, gsKt);
+
+    alt = cruiseAltFt - (ftPerNm * distFromTodNm);
+
+    if (Number.isFinite(destTpaFt)) alt = Math.max(destTpaFt, alt);
+
+    return Number.isFinite(alt) ? String(Math.round(alt)) : "";
   }
-}
-// -----------------------------
-// ROW 1 headings (boxes 33/41/49/57/65 + TAS box 25)
-// Use climb-interpolated wind at mid-climb distance (NOT raw surface wind)
-// -----------------------------
-{
-  const tc = Number(env.firstFixTcDeg ?? displayLegs?.[0]?.tcDeg ?? NaN);
-  const tcOk = Number.isFinite(tc);
 
-  const tasKt = 74;
+  for (let r = 0; r < 6; r++) {
+    const boxId = 147 + r;
+    const txt = altForDisplayLegIndex(r);
+    setP1(boxId, txt);
+  }
 
-  // Row1 distance: dep->TOC if tocBefore, else dep->firstFix
-  let row1DistLocal = Number(env.climbDistWindNm);
-  if (!tocBefore && Number.isFinite(fixDist)) row1DistLocal = fixDist;
+  if (POPULATE_PAGE2) {
+    for (let r = 0; r < 8; r++) {
+      const boxId = 145 + r;
+      const displayIndex = 6 + r;
+      const leg = displayLegs?.[displayIndex];
 
-  const distMid = Number.isFinite(row1DistLocal) ? (row1DistLocal / 2) : 0;
-  const w = windAtClimbDistance(env, distMid);
+      if (!leg) {
+        setP2(boxId, "");
+        continue;
+      }
 
-  const windFromDeg = Number(w.windFrom);
-  const windKt      = Number(w.windKt);
+      setP2(boxId, altForDisplayLegIndex(displayIndex));
+    }
+  }
 
-  const wcaDeg = tcOk ? computeWcaSignedDeg(tc, windFromDeg, windKt, tasKt) : 0;
-  const wcaToken = tcOk ? (formatWcaToken(wcaDeg) || "0") : "";
+  {
+    const tc = Number(env.firstFixTcDeg ?? displayLegs?.[0]?.tcDeg ?? NaN);
+    const tcOk = Number.isFinite(tc);
 
-  const th = tcOk ? norm360(tc + wcaDeg) : NaN;
-  const varToken = formatVarTokenFromPlan(plan);
-  const mh = tcOk ? applyVariationToTH(th, plan) : NaN;
+    const tasKt = 74;
 
-  setP1(33, tcOk ? formatDeg3(tc) : "");
-  setP1(41, wcaToken);
-  setP1(49, Number.isFinite(th) ? formatDeg3(th) : "");
-  setP1(57, varToken);
-  setP1(65, Number.isFinite(mh) ? formatDeg3(mh) : "");
-  setP1(25, formatTAS(tasKt));
-}
+    let row1DistLocal = Number(env.climbDistWindNm);
+    if (!tocBefore && Number.isFinite(fixDist)) row1DistLocal = fixDist;
 
-// -----------------------------
-// ROW 1 climb performance (winds/dist/gs/time/fuel/eta)
-// -----------------------------
-let row1Dist = Number(env.climbDistWindNm);
-if (!tocBefore && Number.isFinite(fixDist)) row1Dist = fixDist;
+    const distMid = Number.isFinite(row1DistLocal) ? (row1DistLocal / 2) : 0;
+    const w = windAtClimbDistance(env, distMid);
 
-const tc1 = Number(
-  env.firstFixTcDeg ?? displayLegs?.[0]?.tcDeg ?? NaN
-);
-const tas1 = 74;
+    const windFromDeg = Number(w.windFrom);
+    const windKt      = Number(w.windKt);
 
-// Keep wind display boxes (001/009) as a “representative” climb wind
-const distMid1 = Number.isFinite(row1Dist) ? (row1Dist / 2) : 0;
-const w1 = windAtClimbDistance(env, distMid1);
-const windFrom1 = Number(w1.windFrom);
-const windKt1   = Number(w1.windKt);
+    const wcaDeg = tcOk ? computeWcaSignedDeg(tc, windFromDeg, windKt, tasKt) : 0;
+    const wcaToken = tcOk ? (formatWcaToken(wcaDeg) || "0") : "";
 
-setP1(1, Number.isFinite(windFrom1) ? formatDeg3(windFrom1) : "");
-setP1(9, Number.isFinite(windKt1) ? String(Math.round(windKt1)) : "");
+    const th = tcOk ? norm360(tc + wcaDeg) : NaN;
+    const varToken = formatVarTokenFromPlan(plan);
+    const mh = tcOk ? applyVariationToTH(th, plan) : NaN;
 
-// Distance
-setP1(89, Number.isFinite(row1Dist) ? fmtNum(row1Dist, 1) : "");
+    setP1(33, tcOk ? formatDeg3(tc) : "");
+    setP1(41, wcaToken);
+    setP1(49, Number.isFinite(th) ? formatDeg3(th) : "");
+    setP1(57, varToken);
+    setP1(65, Number.isFinite(mh) ? formatDeg3(mh) : "");
+    setP1(25, formatTAS(tasKt));
+  }
 
-// ✅ POH portion for row1 distance
-const p1 = pohClimbPortion(row1Dist);
-const time1 = p1.ok ? p1.timeMin : NaN;
+  let row1Dist = Number(env.climbDistWindNm);
+  if (!tocBefore && Number.isFinite(fixDist)) row1Dist = fixDist;
 
-// ✅ GS must be consistent with distance + POH time (average GS)
-const gs1 =
-  (Number.isFinite(row1Dist) && Number.isFinite(time1) && time1 > 0)
-    ? (row1Dist / time1) * 60
-    : NaN;
+  const tc1 = Number(
+    env.firstFixTcDeg ?? displayLegs?.[0]?.tcDeg ?? NaN
+  );
+  const tas1 = 74;
 
-setP1(105, Number.isFinite(gs1) ? String(Math.round(gs1)) : "");
-setP1(113, Number.isFinite(time1) ? fmtNum(time1, 1) : "");
+  const distMid1 = Number.isFinite(row1Dist) ? (row1Dist / 2) : 0;
+  const w1 = windAtClimbDistance(env, distMid1);
+  const windFrom1 = Number(w1.windFrom);
+  const windKt1   = Number(w1.windKt);
 
-if (Number.isFinite(time1)) elapsedMin += time1;
-setP1(121, (timeOffMin == null) ? "" : formatHHMM(timeOffMin + elapsedMin));
+  setP1(1, Number.isFinite(windFrom1) ? formatDeg3(windFrom1) : "");
+  setP1(9, Number.isFinite(windKt1) ? String(Math.round(windKt1)) : "");
 
-// Fuel: POH first, fallback to GPH
-let fuel1 = p1.ok ? p1.fuelGal : NaN;
-if (!Number.isFinite(fuel1)) {
-  const climbGph = Number(env.climbGph ?? env.cruiseGph);
-  fuel1 =
-    (Number.isFinite(time1) && Number.isFinite(climbGph))
-      ? (time1 / 60) * climbGph
+  setP1(89, Number.isFinite(row1Dist) ? fmtNum(row1Dist, 1) : "");
+
+  const p1 = pohClimbPortion(row1Dist);
+  const time1 = p1.ok ? p1.timeMin : NaN;
+
+  const gs1 =
+    (Number.isFinite(row1Dist) && Number.isFinite(time1) && time1 > 0)
+      ? (row1Dist / time1) * 60
       : NaN;
-}
 
-setP1(129, Number.isFinite(fuel1) ? fmtNum(fuel1, 2) : "");
-setFuelRemaining(0, 0, fuel1);
+  setP1(105, Number.isFinite(gs1) ? String(Math.round(gs1)) : "");
+  setP1(113, Number.isFinite(time1) ? fmtNum(time1, 1) : "");
 
-  // -----------------------------
-  // ROW 2 (either cruise or continued climb)
-  // -----------------------------
+  if (Number.isFinite(time1)) elapsedMin += time1;
+  setP1(121, (timeOffMin == null) ? "" : formatHHMM(timeOffMin + elapsedMin));
+
+  let fuel1 = p1.ok ? p1.fuelGal : NaN;
+  if (!Number.isFinite(fuel1)) {
+    const climbGph = Number(env.climbGph ?? env.cruiseGph);
+    fuel1 =
+      (Number.isFinite(time1) && Number.isFinite(climbGph))
+        ? (time1 / 60) * climbGph
+        : NaN;
+  }
+
+  setP1(129, Number.isFinite(fuel1) ? fmtNum(fuel1, 2) : "");
+  setFuelRemaining(0, 0, fuel1);
+
   let row2Dist = NaN;
   if (Number.isFinite(fixDist) && Number.isFinite(tocDist)) {
     row2Dist = tocBefore ? Math.max(0, fixDist - tocDist) : Math.max(0, tocDist - fixDist);
   }
 
-// -----------------------------
-// ROW 2 (either cruise or continued climb)
-// -----------------------------
+  setP1(90, Number.isFinite(row2Dist) ? fmtNum(row2Dist, 1) : "");
 
-setP1(90, Number.isFinite(row2Dist) ? fmtNum(row2Dist, 1) : "");
+  let tas2, windFrom2, windKt2, gph2;
 
-let tas2, windFrom2, windKt2, gph2;
+  if (tocBefore) {
+    tas2 = Number(env.cruiseTasKt);
+    windFrom2 = Number(env.windFromDeg);
+    windKt2   = Number(env.windKt);
+    gph2      = Number(env.cruiseGph);
+  } else {
+    tas2 = 74;
 
-if (tocBefore) {
-  // Row 2 is CRUISE (TOC -> first fix)
-  tas2 = Number(env.cruiseTasKt);
-  windFrom2 = Number(env.windFromDeg);
-  windKt2   = Number(env.windKt);
-  gph2      = Number(env.cruiseGph);
-} else {
-  // Row 2 is STILL CLIMB (first fix -> TOC)
-  tas2 = 74;
+    const distStart2 = Number(env.firstFixDistNm);
+    const distMid2 =
+      Number.isFinite(distStart2) && Number.isFinite(row2Dist)
+        ? distStart2 + (row2Dist / 2)
+        : distStart2;
 
-  const distStart2 = Number(env.firstFixDistNm);
-  const distMid2 =
-    Number.isFinite(distStart2) && Number.isFinite(row2Dist)
-      ? distStart2 + (row2Dist / 2)
-      : distStart2;
+    const w2 = windAtClimbDistance(env, distMid2);
+    windFrom2 = Number(w2.windFrom);
+    windKt2   = Number(w2.windKt);
 
-  const w2 = windAtClimbDistance(env, distMid2);
-  windFrom2 = Number(w2.windFrom);
-  windKt2   = Number(w2.windKt);
+    gph2 = Number(env.climbGph ?? env.cruiseGph);
+  }
 
-  gph2 = Number(env.climbGph ?? env.cruiseGph);
-}
+  setP1(2,  Number.isFinite(windFrom2) ? formatDeg3(windFrom2) : "");
+  setP1(10, Number.isFinite(windKt2) ? String(Math.round(windKt2)) : "");
+  setP1(26, formatTAS(tas2));
 
-// Wind + TAS boxes for row 2
-setP1(2,  Number.isFinite(windFrom2) ? formatDeg3(windFrom2) : "");
-setP1(10, Number.isFinite(windKt2) ? String(Math.round(windKt2)) : "");
-setP1(26, formatTAS(tas2));
+  const gs2 = computeGsKt(tc1, tas2, windFrom2, windKt2);
+  setP1(106, Number.isFinite(gs2) ? String(Math.round(gs2)) : "");
 
-// GS for row 2 (your existing model)
-const gs2 = computeGsKt(tc1, tas2, windFrom2, windKt2);
-setP1(106, Number.isFinite(gs2) ? String(Math.round(gs2)) : "");
+  {
+    const tc2 = tc1;
+    const tc2Ok = Number.isFinite(tc2);
 
-// ✅ NEW: Compute row 2 headings (TC/WCA/TH/VAR/MH) instead of copying row 1
-{
-  const tc2 = tc1;
-  const tc2Ok = Number.isFinite(tc2);
+    const wca2 = tc2Ok ? computeWcaSignedDeg(tc2, windFrom2, windKt2, tas2) : 0;
+    const th2  = tc2Ok ? norm360(tc2 + wca2) : NaN;
 
-  const wca2 = tc2Ok ? computeWcaSignedDeg(tc2, windFrom2, windKt2, tas2) : 0;
-  const th2  = tc2Ok ? norm360(tc2 + wca2) : NaN;
+    const varTok2 = formatVarTokenFromPlan(plan);
+    const mh2 = Number.isFinite(th2) ? applyVariationToTH(th2, plan) : NaN;
 
-  const varTok2 = formatVarTokenFromPlan(plan);
-  const mh2 = Number.isFinite(th2) ? applyVariationToTH(th2, plan) : NaN;
+    setP1(34, tc2Ok ? formatDeg3(tc2) : "");
+    setP1(42, tc2Ok ? (formatWcaToken(wca2) || "0") : "");
+    setP1(50, Number.isFinite(th2) ? formatDeg3(th2) : "");
+    setP1(58, varTok2);
+    setP1(66, Number.isFinite(mh2) ? formatDeg3(mh2) : "");
+  }
 
-  setP1(34, tc2Ok ? formatDeg3(tc2) : "");
-  setP1(42, tc2Ok ? (formatWcaToken(wca2) || "0") : "");
-  setP1(50, Number.isFinite(th2) ? formatDeg3(th2) : "");
-  setP1(58, varTok2);
-  setP1(66, Number.isFinite(mh2) ? formatDeg3(mh2) : "");
-}
+  let time2 = NaN;
+  let fuel2 = NaN;
 
-// ✅ REPLACEMENT STARTS HERE
-let time2 = NaN;
-let fuel2 = NaN;
+  if (!tocBefore) {
+    const p2 = pohClimbPortion(row2Dist);
+    time2 = p2.ok ? p2.timeMin : NaN;
+    fuel2 = p2.ok ? p2.fuelGal : NaN;
 
-if (!tocBefore) {
-  // Row 2 is STILL CLIMB (first fix -> TOC)
-  const p2 = pohClimbPortion(row2Dist);
-  time2 = p2.ok ? p2.timeMin : NaN;
-  fuel2 = p2.ok ? p2.fuelGal : NaN;
+    if (!Number.isFinite(fuel2)) {
+      const climbGph = Number(env.climbGph ?? env.cruiseGph);
+      fuel2 =
+        (Number.isFinite(time2) && Number.isFinite(climbGph))
+          ? (time2 / 60) * climbGph
+          : NaN;
+    }
+  } else {
+    time2 =
+      (Number.isFinite(row2Dist) && Number.isFinite(gs2) && gs2 > 0)
+        ? (row2Dist / gs2) * 60
+        : NaN;
 
-  // If POH fuel missing, fallback to climbGPH
-  if (!Number.isFinite(fuel2)) {
-    const climbGph = Number(env.climbGph ?? env.cruiseGph);
+    const gph2 = Number(env.cruiseGph);
     fuel2 =
-      (Number.isFinite(time2) && Number.isFinite(climbGph))
-        ? (time2 / 60) * climbGph
+      (Number.isFinite(time2) && Number.isFinite(gph2))
+        ? (time2 / 60) * gph2
         : NaN;
   }
-} else {
-  // Row 2 is CRUISE (TOC -> first fix)
-  time2 =
-    (Number.isFinite(row2Dist) && Number.isFinite(gs2) && gs2 > 0)
-      ? (row2Dist / gs2) * 60
-      : NaN;
 
-  const gph2 = Number(env.cruiseGph);
-  fuel2 =
-    (Number.isFinite(time2) && Number.isFinite(gph2))
-      ? (time2 / 60) * gph2
-      : NaN;
-}
-
-setP1(114, Number.isFinite(time2) ? fmtNum(time2, 1) : "");
-if (Number.isFinite(time2)) elapsedMin += time2;
-setP1(122, (timeOffMin == null) ? "" : formatHHMM(timeOffMin + elapsedMin));
+  setP1(114, Number.isFinite(time2) ? fmtNum(time2, 1) : "");
+  if (Number.isFinite(time2)) elapsedMin += time2;
+  setP1(122, (timeOffMin == null) ? "" : formatHHMM(timeOffMin + elapsedMin));
 
   setP1(130, Number.isFinite(fuel2) ? fmtNum(fuel2, 2) : "");
   setFuelRemaining(0, 1, fuel2);
 
-  // -----------------------------
-  // ROWS 3–8 PAGE 1: plan.legs[0..5]
-  // -----------------------------
-
-  // -----------------------------
-  // ✅ Trip total + distance remaining (uses what YOU print on the navlog)
-  // Page 1: Row1 box 89, Row2 box 90, Rows3–8 boxes 91–96
-  // Remaining boxes: 97–104, Total box: 188
-  // -----------------------------
   const distRowsP1 = new Array(8).fill(NaN);
-
-  // Row 1 distance (box 89) and row 2 distance (box 90) already computed above
-  distRowsP1[0] = Number(row1Dist);  // row 1
-  distRowsP1[1] = Number(row2Dist);  // row 2
+  distRowsP1[0] = Number(row1Dist);
+  distRowsP1[1] = Number(row2Dist);
 
   for (let r = 0; r < 6; r++) {
     const leg = displayLegs?.[r];
     if (!leg) continue;
 
-    const origIdx = Number.isFinite(Number(leg._origIndex)) ? Number(leg._origIndex) : r;
-
     const tc = Number(leg.tcDeg);
     const dist = Number(leg.distNm);
-    distRowsP1[2 + r] = dist; // rows 3–8
+    distRowsP1[2 + r] = dist;
     const tcOk = Number.isFinite(tc);
 
     const inClimb = isClimbDisplayLeg(r);
@@ -1702,7 +1198,6 @@ setP1(122, (timeOffMin == null) ? "" : formatHHMM(timeOffMin + elapsedMin));
     const windFrom = Number(w.windFrom);
     const windKt = Number(w.windKt);
 
-    // wind/temp boxes row3+ ids: 3..8, 11..16, 19..24
     setP1(3 + r,  Number.isFinite(windFrom) ? formatDeg3(windFrom) : "");
     setP1(11 + r, Number.isFinite(windKt) ? String(Math.round(windKt)) : "");
 
@@ -1748,133 +1243,111 @@ setP1(122, (timeOffMin == null) ? "" : formatHHMM(timeOffMin + elapsedMin));
     setFuelRemaining(0, 2 + r, fuelGal);
   }
 
-// -----------------------------
-// ✅ Trip Total for Box 188 = SUM OF ALL LEG DISTANCES (route legs only)
-// No TOC/TOD dependency, no row1/row2 dependency.
-// -----------------------------
-{
-  // ✅ Sum route legs (what you already do)
-  const legs = Array.isArray(plan?.legs) ? plan.legs : [];
-  const legsTotal = legs
-    .map(l => Number(l?.distNm))
-    .filter(d => Number.isFinite(d) && d > 0)
-    .reduce((a, b) => a + b, 0);
+  {
+    const legs = Array.isArray(plan?.legs) ? plan.legs : [];
+    const legsTotal = legs
+      .map(l => Number(l?.distNm))
+      .filter(d => Number.isFinite(d) && d > 0)
+      .reduce((a, b) => a + b, 0);
 
-  // ✅ Add Row 1 + Row 2 distances that your navlog already computes
-  const r1 = Number(row1Dist);
-  const r2 = Number(row2Dist);
+    const r1 = Number(row1Dist);
+    const r2 = Number(row2Dist);
 
-  const row1 = (Number.isFinite(r1) && r1 > 0) ? r1 : 0;
-  const row2 = (Number.isFinite(r2) && r2 > 0) ? r2 : 0;
+    const row1 = (Number.isFinite(r1) && r1 > 0) ? r1 : 0;
+    const row2 = (Number.isFinite(r2) && r2 > 0) ? r2 : 0;
 
-  const total = row1 + row2 + legsTotal;
+    const total = row1 + row2 + legsTotal;
 
-  setP1(188, total > 0 ? fmtNum(total, 1) : "");
-}
-  // -----------------------------
-  // PAGE 2 rows 1–8: route legs only (cruise-only)
-  // plan.legs[6..13] -> page2 rows 1..8 (33..40 etc)
-  // -----------------------------
+    setP1(188, total > 0 ? fmtNum(total, 1) : "");
+  }
+
   if (POPULATE_PAGE2) {
-  for (let r = 0; r < 8; r++) {
-    const legIndex = 6 + r;
-    const leg = displayLegs?.[legIndex];
-    if (!leg) continue;
+    for (let r = 0; r < 8; r++) {
+      const legIndex = 6 + r;
+      const leg = displayLegs?.[legIndex];
+      if (!leg) continue;
 
-    const tc = Number(leg.tcDeg);
-    const dist = Number(leg.distNm);
-    const tcOk = Number.isFinite(tc);
+      const tc = Number(leg.tcDeg);
+      const dist = Number(leg.distNm);
+      const tcOk = Number.isFinite(tc);
 
-    const tas = Number(env.cruiseTasKt);
-    const windFrom = Number(env.windFromDeg ?? 0);
-    const windKt = Number(env.windKt ?? 0);
+      const tas = Number(env.cruiseTasKt);
+      const windFrom = Number(env.windFromDeg ?? 0);
+      const windKt = Number(env.windKt ?? 0);
 
-    // wind/temp boxes on page2 for rows 1..8 use ids 1..8, 9..16, 17..24
-    // but NOTE: your page2 row1 wind boxes are id 001/009/017, etc (same ids as page1)
-    setP2(1 + r,  Number.isFinite(windFrom) ? formatDeg3(windFrom) : "");
-    setP2(9 + r,  Number.isFinite(windKt) ? String(Math.round(windKt)) : "");
-    const tC = Number(env.tempCruiseC ?? computeAvgAltEnvironment(env)?.tempC);
-    setP2(17 + r, Number.isFinite(tC) ? String(Math.round(tC)) : "");
+      setP2(1 + r,  Number.isFinite(windFrom) ? formatDeg3(windFrom) : "");
+      setP2(9 + r,  Number.isFinite(windKt) ? String(Math.round(windKt)) : "");
+      const tC = Number(env.tempCruiseC ?? computeAvgAltEnvironment(env)?.tempC);
+      setP2(17 + r, Number.isFinite(tC) ? String(Math.round(tC)) : "");
 
-    const wca = tcOk ? computeWcaSignedDeg(tc, windFrom, windKt, tas) : 0;
-    const th = tcOk ? norm360(tc + wca) : NaN;
-    const varTok = formatVarTokenFromPlan(plan);
-    const mh = tcOk ? applyVariationToTH(th, plan) : NaN;
+      const wca = tcOk ? computeWcaSignedDeg(tc, windFrom, windKt, tas) : 0;
+      const th = tcOk ? norm360(tc + wca) : NaN;
+      const varTok = formatVarTokenFromPlan(plan);
+      const mh = tcOk ? applyVariationToTH(th, plan) : NaN;
 
-    // page2 headings table row mapping uses the same ids as page1
-    setP2(33 + r, tcOk ? formatDeg3(tc) : "");
-    setP2(41 + r, tcOk ? formatWcaToken(wca) : "");
-    setP2(49 + r, Number.isFinite(th) ? formatDeg3(th) : "");
-    setP2(57 + r, varTok);
-    setP2(65 + r, Number.isFinite(mh) ? formatDeg3(mh) : "");
-    setP2(25 + r, formatTAS(tas));
-    setP2(89 + r, Number.isFinite(dist) ? fmtNum(dist, 1) : "");
+      setP2(33 + r, tcOk ? formatDeg3(tc) : "");
+      setP2(41 + r, tcOk ? formatWcaToken(wca) : "");
+      setP2(49 + r, Number.isFinite(th) ? formatDeg3(th) : "");
+      setP2(57 + r, varTok);
+      setP2(65 + r, Number.isFinite(mh) ? formatDeg3(mh) : "");
+      setP2(25 + r, formatTAS(tas));
+      setP2(89 + r, Number.isFinite(dist) ? fmtNum(dist, 1) : "");
 
-    const gs = computeGsKt(tc, tas, windFrom, windKt);
-    setP2(105 + r, Number.isFinite(gs) ? String(Math.round(gs)) : "");
+      const gs = computeGsKt(tc, tas, windFrom, windKt);
+      setP2(105 + r, Number.isFinite(gs) ? String(Math.round(gs)) : "");
 
-    const timeMin =
-      (Number.isFinite(dist) && Number.isFinite(gs) && gs > 0)
-        ? (dist / gs) * 60
-        : NaN;
+      const timeMin =
+        (Number.isFinite(dist) && Number.isFinite(gs) && gs > 0)
+          ? (dist / gs) * 60
+          : NaN;
 
-    setP2(113 + r, Number.isFinite(timeMin) ? fmtNum(timeMin, 1) : "");
+      setP2(113 + r, Number.isFinite(timeMin) ? fmtNum(timeMin, 1) : "");
 
-    if (Number.isFinite(timeMin)) elapsedMin += timeMin;
-    setP2(121 + r, (timeOffMin == null) ? "" : formatHHMM(timeOffMin + elapsedMin));
+      if (Number.isFinite(timeMin)) elapsedMin += timeMin;
+      setP2(121 + r, (timeOffMin == null) ? "" : formatHHMM(timeOffMin + elapsedMin));
 
-    const gph = Number(env.cruiseGph);
-    const fuelGal =
-      (Number.isFinite(timeMin) && Number.isFinite(gph))
-        ? (timeMin / 60) * gph
-        : NaN;
+      const gph = Number(env.cruiseGph);
+      const fuelGal =
+        (Number.isFinite(timeMin) && Number.isFinite(gph))
+          ? (timeMin / 60) * gph
+          : NaN;
 
-    setP2(129 + r, Number.isFinite(fuelGal) ? fmtNum(fuelGal, 2) : "");
-    setFuelRemaining(1, r, fuelGal); // page2 remaining rows 0..7
+      setP2(129 + r, Number.isFinite(fuelGal) ? fmtNum(fuelGal, 2) : "");
+      setFuelRemaining(1, r, fuelGal);
+    }
   }
-}
 
-// Force box 017 (page1) to surface OAT (you had this rule)
-setP1(17, Number.isFinite(Number(env.oatC)) ? String(Math.round(Number(env.oatC))) : "");
+  setP1(17, Number.isFinite(Number(env.oatC)) ? String(Math.round(Number(env.oatC))) : "");
 
-// -----------------------------
-// TEMPERATURES (Page 1 + Page 2)
-// -----------------------------
+  const cruiseAlt = Number(env?.cruiseAltFt);
 
-// Aloft temp (prefer env.tempCruiseC, else compute from aloftPts)
-const cruiseAlt = Number(env?.cruiseAltFt);
+  const aloftTC = (Number.isFinite(cruiseAlt) && cruiseAlt < 6000)
+    ? tempAtAltFromSurfaceAnd6000(env, cruiseAlt)
+    : getCruiseTempC(env);
 
-const aloftTC = (Number.isFinite(cruiseAlt) && cruiseAlt < 6000)
-  ? tempAtAltFromSurfaceAnd6000(env, cruiseAlt)
-  : getCruiseTempC(env);
+  const aloftText = Number.isFinite(aloftTC) ? String(Math.round(aloftTC)) : "";
 
-const aloftText = Number.isFinite(aloftTC) ? String(Math.round(aloftTC)) : "";
+  setP1(18, aloftText);
 
-// Page 1: Rows 2–8 (018–024) = aloft only
-// Page 1: Row 2 (box 018) = aloft always
-setP1(18, aloftText);
-
-// Page 1: Rows 3–8 (boxes 019–024) = aloft ONLY if that route leg exists
-for (let r = 2; r < 8; r++) {
-  const leg = displayLegs?.[r - 2];   // rows 3–8 map to displayLegs[0..5]
-  setP1(17 + r, leg ? aloftText : "");
-}
-
-// Page 2: Rows 1–8 (017–024) = aloft only — but ONLY if that row exists
-if (POPULATE_PAGE2) {
-  for (let r = 0; r < 8; r++) {
-    const leg = displayLegs?.[6 + r];     // page2 row r corresponds to displayLegs[6+r]
-    setP2(17 + r, leg ? aloftText : "");  // no leg => leave blank
+  for (let r = 2; r < 8; r++) {
+    const leg = displayLegs?.[r - 2];
+    setP1(17 + r, leg ? aloftText : "");
   }
+
+  if (POPULATE_PAGE2) {
+    for (let r = 0; r < 8; r++) {
+      const leg = displayLegs?.[6 + r];
+      setP2(17 + r, leg ? aloftText : "");
+    }
+  }
+
+  savePlan(plan);
 }
 
-savePlan(plan);
-}
     window.addEventListener("focus", autopopulate);
 
     // INIT
     try {
-      setHud("Drag to measure a box...");
       drawAllBoxes();
       autopopulate();
     } catch (err) {
@@ -1884,4 +1357,3 @@ savePlan(plan);
   </script>
 </body>
 </html>
-
