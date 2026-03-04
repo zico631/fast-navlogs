@@ -175,6 +175,11 @@
 
   <script type="module">
     import { loadPlan, savePlan, STORAGE_KEY } from "./js/plan/store.js";
+
+    console.log("NAVLOG store key =", STORAGE_KEY);
+    console.log("NAVLOG raw =", localStorage.getItem(STORAGE_KEY));
+    console.log("NAVLOG loadPlan =", loadPlan());
+    
     import { computeTodProfile } from "./js/perf/perfengine.js";
     import { BOXES } from "./js/navlog/boxmap.js";
 
@@ -1137,6 +1142,7 @@ console.log("✅ autopopulate available:", typeof window.autopopulate);
   </script>
 </body>
 </html>
+
 
 
 
