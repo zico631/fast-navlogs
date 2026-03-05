@@ -352,6 +352,7 @@
     </div>
 
     <div class="right">
+      <button id="clearBtn" style="background:#dc2626;">Clear All Fields</button>
       <button id="saveBtn">Save</button>
       <a href="navlog.html?v=2">Go to Nav Log →</a>
     </div>
@@ -1873,9 +1874,52 @@
     renderLegs();
     recalcTOCOrderAndPreview();
     updateTodPreview();
+
+        document.getElementById("clearBtn").onclick = () => {
+      if (!confirm("Clear all fields? This cannot be undone.")) return;
+
+      localStorage.removeItem(STORAGE_KEY);
+
+      document.querySelectorAll("input").forEach(el => {
+        if (el.readOnly) return;
+        el.value = "";
+        el.disabled = false;
+      });
+
+      document.querySelectorAll("select").forEach(el => {
+        el.selectedIndex = 0;
+      });
+
+      plan.legs = [];
+      plan.env = {};
+      legsBody.innerHTML = "";
+
+      gsPillEl.textContent = "GS: —";
+      gsPillEl.className = "pill";
+      tocDecisionPillEl.textContent = "TOC decision: —";
+      tocDecisionPillEl.className = "pill";
+      climbNumbersPillEl.textContent = "Climb to TOC: —";
+      climbNumbersPillEl.className = "pill";
+      todPreviewPillEl.textContent = "TOD: —";
+      todPreviewPillEl.className = "pill";
+      tocResultPillEl.textContent = "TOC: —";
+      tocResultPillEl.className = "pill ok pillWide";
+      aloftCruisePillEl.textContent = "Cruise wind: —";
+      aloftCruisePillEl.className = "pill warn";
+      magVarPillEl.textContent = "VAR: —";
+      cruisePerfPillEl.textContent = "Cruise TAS / GPH: —";
+      cruisePerfPillEl.className = "pill";
+
+      cp1El.value = "—";
+      cp2El.value = "—";
+      cp3El.value = "—";
+
+      setActiveRpmPill(2400);
+    };
   </script>
 </body>
 </html>
+
 
 
 
