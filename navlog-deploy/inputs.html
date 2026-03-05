@@ -878,9 +878,7 @@
 
     function enforceCheckpoint3IntoFirstLeg() {
       if (!Array.isArray(plan.legs)) plan.legs = [];
-      if (plan.legs.length === 0) {
-        plan.legs.push({ from:"", to:"", tcDeg:0, distNm:NaN, wcaDeg:0 });
-      }
+      if (plan.legs.length === 0) return;
 
       const tocBeforeFirstFix = !!plan.env.tocBeforeFirstFix;
 
@@ -1920,6 +1918,7 @@
   </script>
 </body>
 </html>
+
 
 
 
