@@ -484,48 +484,11 @@
           </div>
         </div>
 
-        <div class="helperGrid2">
+                <div class="helperGrid2">
 
           <div class="helperBox">
             <div class="helperBoxHead">
-              <h4>Step 1: Cruise Alt + First Fix</h4>
-              <span class="helperTag">TOC</span>
-            </div>
-
-            <div class="helperFields">
-              <div>
-                <label>Planned Cruise Altitude (ft)</label>
-                <input id="cruiseAlt" type="number" placeholder="">
-              </div>
-
-              <div>
-                <label>First Fix Name</label>
-                <input id="firstFixName" type="text" placeholder="">
-              </div>
-
-              <div>
-                <label>First Fix True Course (°T)</label>
-                <input id="firstFixTc" type="text" inputmode="numeric" maxlength="3" placeholder="">
-              </div>
-
-              <div>
-                <label>Distance to First Fix (NM)</label>
-                <input id="firstFixDist" type="number" step="0.1" placeholder="">
-              </div>
-
-              <div class="helperFull">
-                <button id="recalcTocBtn" type="button" class="btnWide">Recalculate TOC / Climb Numbers</button>
-              </div>
-
-              <div class="helperFull" style="display:flex; justify-content:center; margin-top:10px">
-                <span id="tocResultPill" class="pill ok pillWide">TOC: —</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="helperBox">
-            <div class="helperBoxHead">
-              <h4>Step 2–3: Winds Aloft + Variation</h4>
+              <h4>Step 1: Winds Aloft + Variation</h4>
               <span class="helperTag">WX + VAR</span>
             </div>
 
@@ -579,8 +542,44 @@
             </div>
           </div>
 
+          <div class="helperBox">
+            <div class="helperBoxHead">
+              <h4>Step 2: Cruise Alt + First Fix</h4>
+              <span class="helperTag">TOC</span>
+            </div>
+
+            <div class="helperFields">
+              <div>
+                <label>Planned Cruise Altitude (ft)</label>
+                <input id="cruiseAlt" type="number" placeholder="">
+              </div>
+
+              <div>
+                <label>First Fix Name</label>
+                <input id="firstFixName" type="text" placeholder="">
+              </div>
+
+              <div>
+                <label>First Fix True Course (°T)</label>
+                <input id="firstFixTc" type="text" inputmode="numeric" maxlength="3" placeholder="">
+              </div>
+
+              <div>
+                <label>Distance to First Fix (NM)</label>
+                <input id="firstFixDist" type="number" step="0.1" placeholder="">
+              </div>
+
+              <div class="helperFull">
+                <button id="recalcTocBtn" type="button" class="btnWide">Recalculate TOC / Climb Numbers</button>
+              </div>
+
+              <div class="helperFull" style="display:flex; justify-content:center; margin-top:10px">
+                <span id="tocResultPill" class="pill ok pillWide">TOC: —</span>
+              </div>
+            </div>
+          </div>
+
         </div>
-      </div>
 
       <!-- Cruise performance -->
       <div class="card" style="margin-top:18px">
@@ -1963,6 +1962,7 @@
   </script>
 </body>
 </html>
+
 
 
 
