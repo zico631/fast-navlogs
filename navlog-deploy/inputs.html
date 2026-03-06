@@ -1145,8 +1145,24 @@
       plan.env.windFromDeg = w.dir;
       plan.env.windKt = w.kt;
 
-      const tCruise = tempAtAltFt(plan.env.aloftPts, cruiseAltFt);
-      plan.env.tempCruiseC = Number.isFinite(tCruise) ? tCruise : NaN;
+     const tCruise = tempAtAltFt(plan.env.aloftPts, cruiseAltFt);
+      if (Number.isFinite(tCruise)) {
+        plan.env.tempCruiseC = tCruise;
+      } else {
+        const oatC = Number(plan.env.oatC);
+        const fieldElevFt = Number(plan.env.fieldElevFt);
+        const pts = (plan.env.aloftPts || [])
+          .filter(p => Number.isFinite(p.tempC))
+          .sort((a, b) => a.altFt - b.altFt);
+        if (pts.length > 0 && Number.isFinite(oatC) && Number.isFinite(fieldElevFt)) {
+          const p1 = { altFt: fieldElevFt, tempC: oatC };
+          const p2 = pts[0];
+          const f = (cruiseAltFt - p1.altFt) / (p2.altFt - p1.altFt);
+          plan.env.tempCruiseC = p1.tempC + (p2.tempC - p1.tempC) * f;
+        } else {
+          plan.env.tempCruiseC = NaN;
+        }
+      }
 
       savePlan(plan);
     }
@@ -1962,6 +1978,7 @@
   </script>
 </body>
 </html>
+
 
 
 
