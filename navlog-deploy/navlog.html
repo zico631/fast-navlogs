@@ -633,7 +633,8 @@ function buildDisplayLegs(plan) {
 
       setP1(17,Number.isFinite(Number(env.oatC))?String(Math.round(Number(env.oatC))):"");
       const cruiseAlt=Number(env?.cruiseAltFt);
-      const aloftTC=(Number.isFinite(cruiseAlt)&&cruiseAlt<6000)?tempAtAltFromSurfaceAnd6000(env,cruiseAlt):getCruiseTempC(env);
+      const storedTemp=Number(env?.tempCruiseC);
+      const aloftTC=Number.isFinite(storedTemp)?storedTemp:(Number.isFinite(cruiseAlt)&&cruiseAlt<6000)?tempAtAltFromSurfaceAnd6000(env,cruiseAlt):getCruiseTempC(env);
       const aloftText=Number.isFinite(aloftTC)?String(Math.round(aloftTC)):"";
       setP1(18,aloftText);
       for(let r=2;r<8;r++){const leg=displayLegs?.[r-2+L];setP1(17+r,leg?aloftText:"");}
@@ -648,6 +649,7 @@ function buildDisplayLegs(plan) {
   </script>
 </body>
 </html>
+
 
 
 
