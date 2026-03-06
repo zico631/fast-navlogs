@@ -1765,16 +1765,16 @@
       }
 
       const rpm = Number(plan.env.cruiseRpm);
-      const pAlt = estimatePressureAltFt();
+      const cruiseAltFt = Number(plan.env.cruiseAltFt);
       const oatC = Number(plan.env.oatC);
-
-      if (!Number.isFinite(rpm) || !Number.isFinite(pAlt) || !Number.isFinite(oatC)) {
+      const tempCruiseC = Number(plan.env.tempCruiseC);
+      const tempForCruise = Number.isFinite(tempCruiseC) ? tempCruiseC : oatC;
+      if (!Number.isFinite(rpm) || !Number.isFinite(cruiseAltFt) || !Number.isFinite(oatC)) {
         cruisePerfPillEl.textContent = "Cruise TAS / GPH: —";
         cruisePerfPillEl.className = "pill warn";
         return;
       }
-
-      const out = lookupcruise(ac, pAlt, rpm, oatC);
+      const out = lookupcruise(ac, cruiseAltFt, rpm, tempForCruise);
       plan.env.cruiseTasKt = out.ktas;
       plan.env.cruiseGph = out.gph;
 
@@ -1962,6 +1962,7 @@
   </script>
 </body>
 </html>
+
 
 
 
