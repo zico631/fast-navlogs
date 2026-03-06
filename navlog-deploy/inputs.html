@@ -1069,12 +1069,16 @@
     waRegionEl?.addEventListener("change", () => {
       plan.env.waRegion = waRegionEl.value;
       savePlan(plan);
-      loadWindsAloftStations();
+      loadWindsAloftStations().then(() => doFetchAloft());
     });
     waLevelEl?.addEventListener("change", () => {
       plan.env.waLevel = waLevelEl.value;
       savePlan(plan);
-      loadWindsAloftStations();
+      loadWindsAloftStations().then(() => doFetchAloft());
+    });
+    cruiseAltEl?.addEventListener("input", () => {
+      updateCruiseWindPill();
+      savePlan(plan);
     });
     waStationEl?.addEventListener("change", () => {
       const newStation = (waStationEl.value || "").toUpperCase();
@@ -1956,6 +1960,7 @@
   </script>
 </body>
 </html>
+
 
 
 
