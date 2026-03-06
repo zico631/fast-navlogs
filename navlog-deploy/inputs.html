@@ -1044,10 +1044,13 @@
         }
 
         waStationEl.value = (saved && stations.includes(saved)) ? saved : "";
+        plan.env.regionStations = stations;
+        savePlan(plan);
+        renderLegs();
       } catch (err) {
         console.warn("Station list load failed:", err);
       }
-    }
+
 
     waRegionEl?.addEventListener("change", () => {
       plan.env.waRegion = waRegionEl.value;
@@ -1958,6 +1961,7 @@
   </script>
 </body>
 </html>
+
 
 
 
