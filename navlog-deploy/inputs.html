@@ -1060,8 +1060,18 @@
       loadWindsAloftStations();
     });
     waStationEl?.addEventListener("change", () => {
-      plan.env.waStation = (waStationEl.value || "").toUpperCase();
+      const newStation = (waStationEl.value || "").toUpperCase();
+      plan.env.waStation = newStation;
+
+      if (Array.isArray(plan.legs)) {
+        plan.legs.forEach(leg => {
+          leg.waStation = newStation;
+          leg.aloftPts = null;
+        });
+      }
+
       savePlan(plan);
+      renderLegs();
     });
 
     async function fetchAloftStation(region, level, station) {
@@ -1948,6 +1958,7 @@
   </script>
 </body>
 </html>
+
 
 
 
