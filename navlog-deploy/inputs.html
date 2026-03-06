@@ -831,7 +831,21 @@
     const waRegionEl = document.getElementById("waRegion");
     const waLevelEl = document.getElementById("waLevel");
     const waStationEl = document.getElementById("waStation");
-    const fetchAloftBtn = document.getElementById("fetchAloftBtn");
+    async function doFetchAloft() {
+      const region = waRegionEl.value;
+      const level = waLevelEl.value;
+      const station = String(waStationEl.value || "").toUpperCase();
+      if (!station) return;
+      if (aloftCruisePillEl) { aloftCruisePillEl.textContent = "Winds aloft: fetching…"; aloftCruisePillEl.className = "pill warn pillWide"; }
+      try {
+        const data = await fetchAloftStation(region, level, station);
+        plan.env.waRegion = region; plan.env.waLevel = level; plan.env.waStation = station;
+        plan.env.aloftPts = (data.winds || []).map(w => ({ altFt: Number(w.altFt), dirDeg: (w.dir == null ? null : Number(w.dir)), kt: Number(w.kt), tempC: (w.tempC == null ? null : Number(w.tempC)) }));
+        const w6 = plan.env.aloftPts.find(w => w.altFt === 6000);
+        if (aloftCruisePillEl) { aloftCruisePillEl.textContent = (w6 && Number.isFinite(w6.dirDeg)) ? `6000 ft (${station}): ${formatDeg3(w6.dirDeg)}° / ${w6.kt} kt` : `Fetched (${station})`; aloftCruisePillEl.className = "pill ok pillWide"; }
+        savePlan(plan); updateCruiseWindPill(); recalcTOCOrderAndPreview();
+      } catch(e) { console.warn("Aloft fetch failed:", e); if (aloftCruisePillEl) { aloftCruisePillEl.textContent = "Winds aloft: (no data)"; aloftCruisePillEl.className = "pill warn pillWide"; } }
+    }
     const aloftCruisePillEl = document.getElementById("aloftCruisePill");
 
     const magVarEl = document.getElementById("magVar");
@@ -1981,6 +1995,7 @@
   </script>
 </body>
 </html>
+
 
 
 
