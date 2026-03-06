@@ -1576,46 +1576,7 @@
       recalcTOCOrderAndPreview();
     });
 
-    // -----------------------------
-    // Winds aloft fetch
-    // -----------------------------
-    fetchAloftBtn?.addEventListener("click", async () => {
-      const region = waRegionEl.value;
-      const level = waLevelEl.value;
-      const station = String(waStationEl.value || "").toUpperCase();
 
-      aloftCruisePillEl.textContent = "Winds aloft: fetching…";
-      aloftCruisePillEl.className = "pill warn";
-
-      try {
-        const data = await fetchAloftStation(region, level, station);
-
-        plan.env.waRegion = region;
-        plan.env.waLevel = level;
-        plan.env.waStation = station;
-
-        plan.env.aloftPts = (data.winds || []).map(w => ({
-          altFt: Number(w.altFt),
-          dirDeg: (w.dir == null ? null : Number(w.dir)),
-          kt: Number(w.kt),
-          tempC: (w.tempC == null ? null : Number(w.tempC))
-        }));
-
-        const w6 = plan.env.aloftPts.find(w => w.altFt === 6000);
-        aloftCruisePillEl.textContent = (w6 && Number.isFinite(w6.dirDeg))
-          ? `6000 ft (${station}): ${formatDeg3(w6.dirDeg)}° / ${w6.kt} kt`
-          : `Fetched (${station})`;
-        aloftCruisePillEl.className = "pill ok";
-
-        savePlan(plan);
-        updateCruiseWindPill();
-        recalcTOCOrderAndPreview();
-      } catch (e) {
-        console.warn("Aloft fetch failed:", e);
-        aloftCruisePillEl.textContent = "Winds aloft: (no data)";
-        aloftCruisePillEl.className = "pill warn";
-      }
-    });
 
 // -----------------------------
     // TOD preview (full implementation)
@@ -1995,6 +1956,7 @@
   </script>
 </body>
 </html>
+
 
 
 
