@@ -361,6 +361,25 @@ function buildDisplayLegs(plan) {
           const avg=computeAvgAltEnvironment(env);
           return{windFrom:Number(avg?.windFromDeg??env.surfaceWindFromDeg??0),windKt:Number(avg?.windKt??env.surfaceWindKt??0)};
         }
+        const leg=displayLegs?.[idx];
+        const legAloftPts=Array.isArray(leg?.aloftPts)&&leg.aloftPts.length>0?leg.aloftPts:null;
+        if(legAloftPts){
+          const cruiseAltFt=Number(env.cruiseAltFt);
+          const pts=legAloftPts.map(p=>({altFt:Number(p.altFt),dir:p.dirDeg==null?null:Number(p.dirDeg),kt:Number(p.kt)}));
+          const sorted=pts.filter(p=>Number.isFinite(p.altFt)&&Number.isFinite(p.kt)).sort((a,b)=>a.altFt-b.altFt);
+          if(sorted.length>0&&Number.isFinite(cruiseAltFt)){
+            let i=0;
+            while(i<sorted.length-1&&sorted[i+1].altFt<cruiseAltFt)i++;
+            const p1=sorted[i],p2=sorted[i+1];
+            if(!p2||p1.altFt===cruiseAltFt){
+              return{windFrom:Number.isFinite(p1.dir)?normalizeDeg(p1.dir):0,windKt:Math.round(p1.kt)};
+            }
+            const f=(cruiseAltFt-p1.altFt)/(p2.altFt-p1.altFt);
+            const kt=p1.kt+(p2.kt-p1.kt)*f;
+            const dir=Number.isFinite(p1.dir)&&Number.isFinite(p2.dir)?interpWindDirDeg(p1.dir,p2.dir,f):p1.dir;
+            return{windFrom:Number.isFinite(dir)?normalizeDeg(dir):0,windKt:Math.round(kt)};
+          }
+        }
         const wf=Number.isFinite(Number(env.windFromDeg))?Number(env.windFromDeg):Number(env.surfaceWindFromDeg??0);
         const wk=Number.isFinite(Number(env.windKt))?Number(env.windKt):Number(env.surfaceWindKt??0);
         return{windFrom:wf,windKt:wk};
@@ -629,6 +648,7 @@ function buildDisplayLegs(plan) {
   </script>
 </body>
 </html>
+
 
 
 
