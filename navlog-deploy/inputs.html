@@ -974,6 +974,32 @@
           updateTodPreview();
         });
 
+         tr.querySelector(".legStation").addEventListener("change", async (e) => {
+          const station = String(e.target.value || "").toUpperCase();
+          plan.legs[i].waStation = station;
+          savePlan(plan);
+
+          if (!station || station === "—") return;
+
+          const region = plan.env.waRegion || "bos";
+          const level = plan.env.waLevel || "low";
+
+          try {
+            const data = await fetchAloftStation(region, level, station);
+            if (!plan.env.stationCache) plan.env.stationCache = {};
+            plan.env.stationCache[station] = (data.winds || []).map(w => ({
+              altFt: Number(w.altFt),
+              dirDeg: (w.dir == null ? null : Number(w.dir)),
+              kt: Number(w.kt),
+              tempC: (w.tempC == null ? null : Number(w.tempC))
+            }));
+            plan.legs[i].aloftPts = plan.env.stationCache[station];
+            savePlan(plan);
+          } catch (err) {
+            console.warn(`Leg ${i} station fetch failed:`, err);
+          }
+        });
+
         legsBody.appendChild(tr);
       });
     }
@@ -1922,6 +1948,7 @@
   </script>
 </body>
 </html>
+
 
 
 
