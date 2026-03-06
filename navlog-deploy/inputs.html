@@ -906,6 +906,10 @@
 
       plan.legs.forEach((leg, i) => {
         const tr = document.createElement("tr");
+                const stationOptions = (plan.env.regionStations || [])
+          .map(s => `<option value="${s}" ${s === (leg.waStation || plan.env.waStation || "") ? "selected" : ""}>${s}</option>`)
+          .join("");
+
         tr.innerHTML = `
           <td><input value="${leg.from ?? ""}" class="from"></td>
           <td><input value="${leg.to ?? ""}" class="to"></td>
@@ -913,9 +917,9 @@
                      value="${Number.isFinite(Number(leg.tcDeg)) ? formatDeg3(leg.tcDeg) : ""}" class="tc"></td>
           <td><input type="number" step="0.1"
                      value="${Number.isFinite(Number(leg.distNm)) ? Number(leg.distNm) : ""}" class="dist"></td>
+          <td><select class="legStation"><option value="">—</option>${stationOptions}</select></td>
           <td><button data-i="${i}" type="button">X</button></td>
         `;
-
         const tcEl = tr.querySelector(".tc");
         setDirInputBehavior(tcEl);
 
@@ -1918,6 +1922,7 @@
   </script>
 </body>
 </html>
+
 
 
 
