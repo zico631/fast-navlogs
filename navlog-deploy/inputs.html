@@ -605,7 +605,9 @@
         <div class="row" style="margin-top:12px">
           <div>
             <label>Time Off (local)</label>
-            <input id="timeOffLocal" type="text" inputmode="numeric" placeholder="14:00" required style="width:140px" />
+            <select id="timeOffLocal" style="width:140px">
+              <option value="">Select time…</option>
+            </select>
           </div>
 
           <div>
@@ -1798,16 +1800,7 @@
     // -----------------------------
     // Hydrate UI from plan
     // -----------------------------
-    function normalizeHHMM(v) {
-      const s = String(v || "").trim();
-      let m = s.match(/^(\d{1,2}):(\d{2})$/);
-      if (!m) m = s.match(/^(\d{2})(\d{2})$/);
-      if (!m) return "";
-      const hh = Number(m[1]);
-      const mm = Number(m[2]);
-      if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return "";
-      return String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
-    }
+
 
     function hydrateInputsFromPlan() {
       aircraftEl.value = plan.aircraftId ?? "C172S";
@@ -1887,16 +1880,25 @@
     };
 
     // Time + fuel
-    timeOffLocalEl?.addEventListener("input", () => {
-      plan.env.timeOffLocal = String(timeOffLocalEl.value || "").trim();
+    // populate time dropdown
+    (function() {
+      for (let h = 0; h < 24; h++) {
+        for (let m of [0, 30]) {
+          const val = String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
+          const opt = document.createElement("option");
+          opt.value = val;
+          opt.textContent = val;
+          timeOffLocalEl.appendChild(opt);
+        }
+      }
+      timeOffLocalEl.value = plan.env.timeOffLocal || "";
+    })();
+
+    timeOffLocalEl?.addEventListener("change", () => {
+      plan.env.timeOffLocal = timeOffLocalEl.value;
       savePlan(plan);
     });
-    timeOffLocalEl?.addEventListener("blur", () => {
-      const norm = normalizeHHMM(timeOffLocalEl.value);
-      timeOffLocalEl.value = norm || timeOffLocalEl.value;
-      plan.env.timeOffLocal = norm || "";
-      savePlan(plan);
-    });
+    
 
     fuelStartGalEl?.addEventListener("input", () => {
       const v = Number(fuelStartGalEl.value);
@@ -1959,6 +1961,7 @@
   </script>
 </body>
 </html>
+
 
 
 
