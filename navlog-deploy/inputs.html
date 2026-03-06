@@ -568,9 +568,7 @@
                 </select>
               </div>
 
-              <div class="helperFull">
-                <button id="recalcTocBtn" type="button" class="btnWide">Recalculate TOC / Climb Numbers</button>
-              </div>
+            
 
               <div class="helperFull" style="display:flex; justify-content:center; margin-top:10px">
                 <span id="tocResultPill" class="pill ok pillWide">TOC: —</span>
@@ -816,7 +814,7 @@
     const firstFixNameEl = document.getElementById("firstFixName");
     const firstFixTcEl = document.getElementById("firstFixTc");
     const firstFixDistEl = document.getElementById("firstFixDist");
-    const recalcTocBtn = document.getElementById("recalcTocBtn");
+    
 
     const cp1El = document.getElementById("cp1");
     const cp2El = document.getElementById("cp2");
@@ -1716,7 +1714,7 @@
       el?.addEventListener("input", () => { recalcTOCOrderAndPreview(); savePlan(plan); });
       el?.addEventListener("change", () => { recalcTOCOrderAndPreview(); savePlan(plan); });
     }
-    recalcTocBtn && (recalcTocBtn.onclick = () => recalcTOCOrderAndPreview());
+    
 
     // -----------------------------
     // Altimeter persistence
@@ -1960,6 +1958,7 @@
   </script>
 </body>
 </html>
+
 
 
 
