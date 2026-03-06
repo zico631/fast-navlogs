@@ -1076,6 +1076,10 @@
 
       savePlan(plan);
       renderLegs();
+
+      if (newStation && /^[A-Z]{3}$/.test(newStation)) {
+        fetchAloftBtn.click();
+      }
     });
 
     async function fetchAloftStation(region, level, station) {
@@ -1978,6 +1982,7 @@
   </script>
 </body>
 </html>
+
 
 
 
