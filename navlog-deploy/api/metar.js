@@ -6,30 +6,35 @@ export default async function handler(req, res) {
       return;
     }
 
-    const upstream = `https://aviationweather.gov/api/data/metar?ids=${encodeURIComponent(icao)}&format=json`;
-    const r = await fetch(upstream, {
-      headers: { "Accept": "application/json" }
-    });
-    if (!r.ok) {
-      res.status(r.status).json({ error: `Upstream HTTP ${r.status}` });
+    // Fetch METAR and airport data in parallel
+    const [metarRes, airportRes] = await Promise.all([
+      fetch(`https://aviationweather.gov/api/data/metar?ids=${encodeURIComponent(icao)}&format=json`, { headers: { "Accept": "application/json" } }),
+      fetch(`https://aviationweather.gov/api/data/airport?ids=${encodeURIComponent(icao)}&format=json`, { headers: { "Accept": "application/json" } })
+    ]);
+
+    const metarData = metarRes.ok ? await metarRes.json() : [];
+    const airportData = airportRes.ok ? await airportRes.json() : [];
+
+    const m = Array.isArray(metarData) ? metarData[0] : null;
+    const a = Array.isArray(airportData) ? airportData[0] : null;
+
+    if (!m && !a) {
+      res.status(404).json({ error: `No data found for ${icao}` });
       return;
     }
 
-    const data = await r.json();
-    const m = Array.isArray(data) ? data[0] : null;
-    if (!m) {
-      res.status(404).json({ error: `No METAR found for ${icao}` });
-      return;
-    }
+    const fieldElevFt = a?.elev ?? null;
 
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.status(200).json({
       icao,
-      oatC: m.temp ?? null,
-      altimeterInHg: m.altim ? Math.round((m.altim * 0.02953) * 100) / 100 : null,
-      windFromDeg: m.wdir ?? null,
-      windKt: m.wspd ?? null,
-      rawOb: m.rawOb ?? null
+      oatC: m?.temp ?? null,
+      altimeterInHg: m?.altim ? Math.round((m.altim * 0.02953) * 100) / 100 : null,
+      windFromDeg: m?.wdir ?? null,
+      windKt: m?.wspd ?? null,
+      rawOb: m?.rawOb ?? null,
+      fieldElevFt,
+      tpaFt: fieldElevFt != null ? Math.round(fieldElevFt / 100) * 100 + 1000 : null
     });
 
   } catch (err) {
