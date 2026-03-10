@@ -404,7 +404,7 @@
         String(cp3||"").trim().toUpperCase() === "TOC" &&
         String(displayLegs?.[0]?.to||"").trim().toUpperCase() === "TOC";
       const L = tocAfterFirstFix ? 1 : 0; // legOffset
-      const POPULATE_PAGE2 = displayLegs.length + L > 8;
+      const POPULATE_PAGE2 = displayLegs.length + L >= 8;
 
       const tc1 = tocAfterFirstFix
         ? Number(displayLegs?.[0]?.tcDeg ?? NaN)
@@ -646,3 +646,4 @@
   </script>
 </body>
 </html>
+
