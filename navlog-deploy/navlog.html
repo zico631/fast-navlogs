@@ -625,19 +625,6 @@
           const fuelGal=(Number.isFinite(timeMin)&&Number.isFinite(gph))?(timeMin/60)*gph:NaN;
           setP2(129+r,Number.isFinite(fuelGal)?fmtNum(fuelGal,2):""); setFuelRemaining(1,r,fuelGal);
         }
-
-        // ── Page 2 total distance + distance remaining ──
-        const p1total=getBoxOnPage(0,188)?.textContent??"";
-        setP2(188,p1total);
-        const total2=Number(p1total);
-        if(total2>0){
-          let cum=0;
-          for(let r=0;r<8;r++){
-            const d=parseFloat(getBoxOnPage(1,89+r)?.textContent??"");
-            if(Number.isFinite(d)&&d>0)cum+=d;
-            setP2(97+r,cum>0?fmtNum(Math.max(0,total2-cum),1):"");
-          }
-        }
       }
 
       // ── Temperature boxes ──
@@ -659,5 +646,6 @@
   </script>
 </body>
 </html>
+
 
 
