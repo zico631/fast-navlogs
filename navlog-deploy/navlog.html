@@ -612,7 +612,7 @@ function buildDisplayLegs(plan) {
 
       if(POPULATE_PAGE2){
         for(let r=0;r<8;r++){
-          const leg=displayLegs?.[6+r]; if(!leg)continue;
+          const leg=displayLegs?.[6+L+r]; if(!leg)continue;
           const tc=Number(leg.tcDeg),dist=Number(leg.distNm),tcOk=Number.isFinite(tc);
           const tas=Number(env.cruiseTasKt),wf=Number(env.windFromDeg??0),wk=Number(env.windKt??0);
           setP2(1+r,Number.isFinite(wf)?formatDeg3(wf):""); setP2(9+r,Number.isFinite(wk)?String(Math.round(wk)):"");
@@ -654,6 +654,7 @@ function buildDisplayLegs(plan) {
   </script>
 </body>
 </html>
+
 
 
 
