@@ -23,7 +23,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    const fieldElevFt = a?.elev ?? null;
+    const fieldElevFt = a?.elev != null ? Math.round(a.elev * 3.28084) : null;
 
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.status(200).json({
