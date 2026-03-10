@@ -385,7 +385,7 @@ function buildDisplayLegs(plan) {
         return{windFrom:wf,windKt:wk};
       }
 
-      const POPULATE_PAGE2 = displayLegs.length + L > 8;
+      const POPULATE_PAGE2 = displayLegs.length > 8;
 
       const todHdr=env.tod;
       if(todHdr?.ok&&Number.isFinite(Number(todHdr.todNm))){
@@ -654,6 +654,7 @@ function buildDisplayLegs(plan) {
   </script>
 </body>
 </html>
+
 
 
 
