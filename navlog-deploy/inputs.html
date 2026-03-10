@@ -870,6 +870,12 @@
       depIcaoEl.setSelectionRange(pos, pos);
     });
 
+    destIcaoEl?.addEventListener("input", () => {
+      const pos = destIcaoEl.selectionStart;
+      destIcaoEl.value = destIcaoEl.value.toUpperCase();
+      destIcaoEl.setSelectionRange(pos, pos);
+    });
+
     // -----------------------------
     // Trip totals (route legs only)
     // -----------------------------
@@ -1962,6 +1968,7 @@
   </script>
 </body>
 </html>
+
 
 
 
