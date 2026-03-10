@@ -28,7 +28,8 @@ export default async function handler(req, res) {
       oatC: m.temp ?? null,
       altimeterInHg: m.altim ? Math.round((m.altim * 0.02953) * 100) / 100 : null,
       windFromDeg: m.wdir ?? null,
-      windKt: m.wspd ?? null
+      windKt: m.wspd ?? null,
+      rawOb: m.rawOb ?? null
     });
 
   } catch (err) {
