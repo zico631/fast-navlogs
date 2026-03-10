@@ -892,6 +892,9 @@
           if (data.windKt != null)        { destWindKtEl.value = Math.round(data.windKt); plan.env.destSurfaceWindKt = Math.round(data.windKt); }
         }
 
+        const metarEl = target === "dep" ? document.getElementById("depMetar") : document.getElementById("destMetar");
+        if (metarEl) metarEl.textContent = data.rawOb ?? "";
+
         savePlan(plan);
         recalcTOCOrderAndPreview();
       } catch(e) {
@@ -1994,6 +1997,7 @@
   </script>
 </body>
 </html>
+
 
 
 
