@@ -435,9 +435,9 @@ function buildDisplayLegs(plan) {
 
       if(POPULATE_PAGE2){
         setP2(161,getBoxOnPage(0,169)?.textContent??"");
-        setP2(162,String(displayLegs?.[6]?.to??"").trim().toUpperCase());
-        setP2(163,String(displayLegs?.[7]?.to??"").trim().toUpperCase());
-        for(let i=0;i<6;i++)setP2(164+i,String(displayLegs?.[8+i]?.to??"").trim().toUpperCase());
+        setP2(162,String(displayLegs?.[6+L]?.to??"").trim().toUpperCase());
+        setP2(163,String(displayLegs?.[7+L]?.to??"").trim().toUpperCase());
+        for(let i=0;i<6;i++)setP2(164+i,String(displayLegs?.[8+L+i]?.to??"").trim().toUpperCase());
       }
 
       const fixDist=Number(env.firstFixDistNm);
@@ -654,6 +654,7 @@ function buildDisplayLegs(plan) {
   </script>
 </body>
 </html>
+
 
 
 
