@@ -603,6 +603,19 @@ function buildDisplayLegs(plan) {
         const r1=Number(row2Dist),r0=tocBefore?Number(env.climbDistWindNm):fixDist;
         const total=(Number.isFinite(r0)&&r0>0?r0:0)+(Number.isFinite(r1)&&r1>0?r1:0)+legsTotal;
         setP1(188,total>0?fmtNum(total,1):"");
+
+        // Distance remaining boxes 097-104
+        if(total>0){
+          let cum=0;
+          for(let r=0;r<8;r++){
+            const distEl=getBoxOnPage(0,89+r);
+            const d=parseFloat(distEl?.textContent??"");
+            if(Number.isFinite(d)&&d>0)cum+=d;
+            setP1(97+r,cum>0?fmtNum(Math.max(0,total-cum),1):"");
+          }
+        }else{
+          for(let i=97;i<=104;i++)setP1(i,"");
+        }
       }
 
       if(POPULATE_PAGE2){
@@ -649,6 +662,7 @@ function buildDisplayLegs(plan) {
   </script>
 </body>
 </html>
+
 
 
 
