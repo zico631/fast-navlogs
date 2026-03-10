@@ -250,70 +250,64 @@
       return false;
     }
 
-    // ─── buildDisplayLegs ────────────────────────────────────────────────────
-    // When TOC is AFTER first fix: splits the first route leg at the TOC point.
-    // Returns displayLegs where:
-    //   [0] = firstFix → TOC  (already rendered by hardcoded row2 in autopopulate)
-    //   [1] = TOC → nextFix   (rendered in the data-rows loop)
-    // ─────────────────────────────────────────────────────────────────────────
-function buildDisplayLegs(plan) {
-  const legs=Array.isArray(plan?.legs)?plan.legs:[];
-  const env=plan?.env||{};
-  const out=legs.map((l,idx)=>({...l,_origIndex:idx}));
-  const tocBefore=!!env.tocBeforeFirstFix;
-  const fixDist=Number(env.firstFixDistNm);
-  const tocDist=Number(env.climbDistWindNm);
+    function buildDisplayLegs(plan) {
+      const legs=Array.isArray(plan?.legs)?plan.legs:[];
+      const env=plan?.env||{};
+      const out=legs.map((l,idx)=>({...l,_origIndex:idx}));
+      const tocBefore=!!env.tocBeforeFirstFix;
+      const fixDist=Number(env.firstFixDistNm);
+      const tocDist=Number(env.climbDistWindNm);
 
-  let tocSplitHappened = false;
+      let tocSplitHappened = false;
 
-  if(!tocBefore&&out.length>0&&Number.isFinite(fixDist)&&Number.isFinite(tocDist)&&tocDist>fixDist){
-    const tocFromFirstFixNm=tocDist-fixDist;
-    if(Number.isFinite(tocFromFirstFixNm)&&tocFromFirstFixNm>0){
-      let cum=0;
-      for(let i=0;i<out.length;i++){
-        const d=Number(out[i]?.distNm);
-        if(!Number.isFinite(d)||d<=0)continue;
-        if(cum+d>=tocFromFirstFixNm){
-          const a=tocFromFirstFixNm-cum, b=d-a;
-          const orig={...out[i]};
-          out.splice(i,1,
-            {...orig,to:"TOC",distNm:a,_phase:"climb"},
-            {...orig,from:"TOC",distNm:b,_phase:"cruise"}
-          );
-          tocSplitHappened = true;
-          for(let k=i+1;k<out.length;k++)out[k]._phase=out[k]._phase||"cruise";
-          break;
+      if(!tocBefore&&out.length>0&&Number.isFinite(fixDist)&&Number.isFinite(tocDist)&&tocDist>fixDist){
+        const tocFromFirstFixNm=tocDist-fixDist;
+        if(Number.isFinite(tocFromFirstFixNm)&&tocFromFirstFixNm>0){
+          let cum=0;
+          for(let i=0;i<out.length;i++){
+            const d=Number(out[i]?.distNm);
+            if(!Number.isFinite(d)||d<=0)continue;
+            if(cum+d>=tocFromFirstFixNm){
+              const a=tocFromFirstFixNm-cum, b=d-a;
+              const orig={...out[i]};
+              out.splice(i,1,
+                {...orig,to:"TOC",distNm:a,_phase:"climb"},
+                {...orig,from:"TOC",distNm:b,_phase:"cruise"}
+              );
+              tocSplitHappened = true;
+              for(let k=i+1;k<out.length;k++)out[k]._phase=out[k]._phase||"cruise";
+              break;
+            }
+            cum+=d;
+          }
         }
-        cum+=d;
       }
+
+      if(tocBefore)out.forEach(l=>{l._phase=l._phase||"cruise";});
+
+      if(env.tod?.ok){
+        const tocSplitOffset = tocSplitHappened ? 1 : 0;
+        const li=Number(env.tod.legIndex) + tocSplitOffset;
+        const a=Number(env.tod.distFromLegStart),b=Number(env.tod.distFromLegEnd);
+        if(Number.isFinite(li)&&li>=0&&li<out.length&&Number.isFinite(a)&&Number.isFinite(b)&&a>0&&b>0){
+          const orig={...out[li]};
+          out.splice(li,1,
+            {...orig,to:"TOD",distNm:a,_phase:orig._phase||"cruise"},
+            {...orig,from:"TOD",distNm:b,_phase:orig._phase||"cruise"}
+          );
+        }
+      }
+
+      if(tocBefore){
+        out.forEach(l=>{l._phase="cruise";});
+      }else{
+        const idx=out.findIndex(l=>String(l?.to||"").trim().toUpperCase()==="TOC");
+        if(idx>=0)out.forEach((l,i)=>{l._phase=i<=idx?"climb":"cruise";});
+        else out.forEach(l=>{l._phase=l._phase||"cruise";});
+      }
+
+      return out;
     }
-  }
-
-  if(tocBefore)out.forEach(l=>{l._phase=l._phase||"cruise";});
-
-  if(env.tod?.ok){
-    const tocSplitOffset = tocSplitHappened ? 1 : 0;
-    const li=Number(env.tod.legIndex) + tocSplitOffset;
-    const a=Number(env.tod.distFromLegStart),b=Number(env.tod.distFromLegEnd);
-    if(Number.isFinite(li)&&li>=0&&li<out.length&&Number.isFinite(a)&&Number.isFinite(b)&&a>0&&b>0){
-      const orig={...out[li]};
-      out.splice(li,1,
-        {...orig,to:"TOD",distNm:a,_phase:orig._phase||"cruise"},
-        {...orig,from:"TOD",distNm:b,_phase:orig._phase||"cruise"}
-      );
-    }
-  }
-
-  if(tocBefore){
-    out.forEach(l=>{l._phase="cruise";});
-  }else{
-    const idx=out.findIndex(l=>String(l?.to||"").trim().toUpperCase()==="TOC");
-    if(idx>=0)out.forEach((l,i)=>{l._phase=i<=idx?"climb":"cruise";});
-    else out.forEach(l=>{l._phase=l._phase||"cruise";});
-  }
-
-  return out;
-}
 
     // ─── autopopulate ─────────────────────────────────────────────────────────
     function autopopulate() {
@@ -385,14 +379,6 @@ function buildDisplayLegs(plan) {
         return{windFrom:wf,windKt:wk};
       }
 
-      const POPULATE_PAGE2 = displayLegs.length > 8;
-
-      const todHdr=env.tod;
-      if(todHdr?.ok&&Number.isFinite(Number(todHdr.todNm))){
-        setP1(227,`TOD ${Number(todHdr.todNm).toFixed(1)} NM before ${String(todHdr.destIcao||"").toUpperCase()} — ${String(todHdr.from||"").toUpperCase()}→${String(todHdr.to||"").toUpperCase()} (+${Number(todHdr.distFromLegStart||0).toFixed(1)} NM)`);
-        if(POPULATE_PAGE2)setP2(227,`TOD ${Number(todHdr.todNm).toFixed(1)} NM before ${String(todHdr.destIcao||"").toUpperCase()} — ${String(todHdr.from||"").toUpperCase()}→${String(todHdr.to||"").toUpperCase()} (+${Number(todHdr.distFromLegStart||0).toFixed(1)} NM)`);
-      }else{setP1(227,"");if(POPULATE_PAGE2)setP2(227,"");}
-
       const startFuelGal=Number(env.fuelOnBoardGal??env.fuelTakeoffGal??env.fuelStartGal);
       let elapsedMin=0,fuelUsedCumGal=0;
 
@@ -404,7 +390,6 @@ function buildDisplayLegs(plan) {
       }
 
       const timeOffStr=String(env.timeOffLocal||"").trim();
-      setP1(189,timeOffStr); if(POPULATE_PAGE2)setP2(189,timeOffStr);
       const timeOffMin=parseHHMM(timeOffStr);
 
       const dep=(env.depIcao||"").toUpperCase();
@@ -415,20 +400,27 @@ function buildDisplayLegs(plan) {
       const cp3=tocBefore?(firstFix||"FIX"):"TOC";
       setP1(161,cp1); setP1(162,cp2); setP1(163,cp3);
 
-      // ✅ KEY FIX:
-      // When TOC is after first fix, buildDisplayLegs produces:
-      //   displayLegs[0] = firstFix→TOC  ← already rendered by hardcoded row2
-      //   displayLegs[1] = TOC→nextFix   ← should be first data row
-      // So we skip displayLegs[0] in ALL rendering (labels, TC, alt, data rows).
       const tocAfterFirstFix = !tocBefore &&
         String(cp3||"").trim().toUpperCase() === "TOC" &&
         String(displayLegs?.[0]?.to||"").trim().toUpperCase() === "TOC";
       const L = tocAfterFirstFix ? 1 : 0; // legOffset
+      const POPULATE_PAGE2 = displayLegs.length + L > 8;
+
       const tc1 = tocAfterFirstFix
         ? Number(displayLegs?.[0]?.tcDeg ?? NaN)
         : Number(env.firstFixTcDeg ?? displayLegs?.[0]?.tcDeg ?? NaN);
 
-      // Checkpoint labels
+      // ── TOD header note (box 227) ──
+      const todHdr=env.tod;
+      if(todHdr?.ok&&Number.isFinite(Number(todHdr.todNm))){
+        setP1(227,`TOD ${Number(todHdr.todNm).toFixed(1)} NM before ${String(todHdr.destIcao||"").toUpperCase()} — ${String(todHdr.from||"").toUpperCase()}→${String(todHdr.to||"").toUpperCase()} (+${Number(todHdr.distFromLegStart||0).toFixed(1)} NM)`);
+        if(POPULATE_PAGE2)setP2(227,`TOD ${Number(todHdr.todNm).toFixed(1)} NM before ${String(todHdr.destIcao||"").toUpperCase()} — ${String(todHdr.from||"").toUpperCase()}→${String(todHdr.to||"").toUpperCase()} (+${Number(todHdr.distFromLegStart||0).toFixed(1)} NM)`);
+      }else{setP1(227,"");if(POPULATE_PAGE2)setP2(227,"");}
+
+      // ── Time off ──
+      setP1(189,timeOffStr); if(POPULATE_PAGE2)setP2(189,timeOffStr);
+
+      // ── Checkpoint labels ──
       for(let i=0;i<6;i++){
         setP1(164+i, String(displayLegs?.[i+L]?.to??"").trim().toUpperCase());
       }
@@ -450,15 +442,15 @@ function buildDisplayLegs(plan) {
       setP1(153,tcRow1Txt);
       setP1(154, tocAfterFirstFix ? (Number.isFinite(tc1) ? formatDeg3(tc1) : "") : tcRow1Txt);
 
-      // TC boxes for data rows — offset by L
+      // TC boxes for data rows
       for(let i=0;i<6;i++){
         const tc=Number(displayLegs?.[i+L]?.tcDeg);
         setP1(155+i,Number.isFinite(tc)?formatDeg3(tc):"");
       }
       if(POPULATE_PAGE2){
-        setP2(153,formatDeg3(displayLegs?.[6]?.tcDeg));
-        setP2(154,formatDeg3(displayLegs?.[7]?.tcDeg));
-        for(let i=0;i<6;i++)setP2(155+i,formatDeg3(displayLegs?.[8+i]?.tcDeg));
+        setP2(153,formatDeg3(displayLegs?.[6+L]?.tcDeg));
+        setP2(154,formatDeg3(displayLegs?.[7+L]?.tcDeg));
+        for(let i=0;i<6;i++)setP2(155+i,formatDeg3(displayLegs?.[8+L+i]?.tcDeg));
       }
 
       let firstFixAltFt=NaN;
@@ -490,7 +482,7 @@ function buildDisplayLegs(plan) {
       }
 
       for(let r=0;r<6;r++)setP1(147+r,altForLeg(r+L));
-      if(POPULATE_PAGE2)for(let r=0;r<8;r++){const leg=displayLegs?.[6+r];setP2(145+r,leg?altForLeg(6+r):"");}
+      if(POPULATE_PAGE2)for(let r=0;r<8;r++){const leg=displayLegs?.[6+L+r];setP2(145+r,leg?altForLeg(6+L+r):"");}
 
       // ── Hardcoded Row 1: DEP → first fix ──
       {
@@ -523,7 +515,6 @@ function buildDisplayLegs(plan) {
       if(Number.isFinite(fixDist)&&Number.isFinite(tocDist))
         row2Dist=tocBefore?Math.max(0,fixDist-tocDist):Math.max(0,tocDist-fixDist);
       setP1(90,Number.isFinite(row2Dist)?fmtNum(row2Dist,1):"");
-
 
       let tas2,wf2,wk2;
       if(tocBefore){tas2=Number(env.cruiseTasKt);wf2=Number(env.windFromDeg);wk2=Number(env.windKt);}
@@ -559,8 +550,6 @@ function buildDisplayLegs(plan) {
       setP1(130,Number.isFinite(fuel2)?fmtNum(fuel2,2):""); setFuelRemaining(0,1,fuel2);
 
       // ── Data rows loop: displayLegs[L] onwards ──
-      // L=1 when TOC is after first fix (skip displayLegs[0] which is already row2)
-      // L=0 when TOC is before first fix (normal)
       for(let r=0;r<6;r++){
         const leg=displayLegs?.[r+L];
         if(!leg)continue;
@@ -589,6 +578,7 @@ function buildDisplayLegs(plan) {
         setP1(131+r,Number.isFinite(fuelGal)?fmtNum(fuelGal,2):""); setFuelRemaining(0,2+r,fuelGal);
       }
 
+      // ── Total distance + distance remaining ──
       {
         const legs=Array.isArray(plan?.legs)?plan.legs:[];
         const legsTotal=legs.map(l=>Number(l?.distNm)).filter(d=>Number.isFinite(d)&&d>0).reduce((a,b)=>a+b,0);
@@ -610,6 +600,7 @@ function buildDisplayLegs(plan) {
         }
       }
 
+      // ── Page 2 data rows ──
       if(POPULATE_PAGE2){
         for(let r=0;r<8;r++){
           const leg=displayLegs?.[6+L+r]; if(!leg)continue;
@@ -636,6 +627,7 @@ function buildDisplayLegs(plan) {
         }
       }
 
+      // ── Temperature boxes ──
       setP1(17,Number.isFinite(Number(env.oatC))?String(Math.round(Number(env.oatC))):"");
       const cruiseAlt=Number(env?.cruiseAltFt);
       const storedTemp=Number(env?.tempCruiseC);
@@ -643,7 +635,7 @@ function buildDisplayLegs(plan) {
       const aloftText=Number.isFinite(aloftTC)?String(Math.round(aloftTC)):"";
       setP1(18,aloftText);
       for(let r=2;r<8;r++){const leg=displayLegs?.[r-2+L];setP1(17+r,leg?aloftText:"");}
-      if(POPULATE_PAGE2)for(let r=0;r<8;r++){const leg=displayLegs?.[6+r];setP2(17+r,leg?aloftText:"");}
+      if(POPULATE_PAGE2)for(let r=0;r<8;r++){const leg=displayLegs?.[6+L+r];setP2(17+r,leg?aloftText:"");}
 
       savePlan(plan);
     }
@@ -654,13 +646,3 @@ function buildDisplayLegs(plan) {
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
