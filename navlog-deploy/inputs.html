@@ -876,6 +876,37 @@
       destIcaoEl.setSelectionRange(pos, pos);
     });
 
+    async function fetchAndFillMetar(icao, target) {
+      const v = String(icao || "").trim().toUpperCase();
+      if (!/^K[A-Z]{3}$/.test(v)) return;
+      try {
+        const data = await fetch(`/api/metar?icao=${encodeURIComponent(v)}`).then(r => r.json());
+        if (data.error) return;
+
+        if (target === "dep") {
+          if (data.oatC != null)          { oatEl.value = Math.round(data.oatC); plan.env.oatC = Math.round(data.oatC); }
+          if (data.altimeterInHg != null) { altimeterEl.value = data.altimeterInHg.toFixed(2); plan.env.altimeterInHg = data.altimeterInHg; }
+          if (data.windKt != null)        { surfaceWindKtEl.value = String(Math.round(data.windKt)).padStart(3,"0"); plan.env.surfaceWindKt = Math.round(data.windKt); }
+          if (data.windFromDeg != null)   { surfaceWindFromEl.value = String(normalizeDeg(data.windFromDeg)).padStart(3,"0"); plan.env.surfaceWindFromDeg = normalizeDeg(data.windFromDeg); }
+          if (data.windKt === 0)          { surfaceWindFromEl.value = "Winds calm"; surfaceWindFromEl.disabled = true; }
+        }
+
+        if (target === "dest") {
+          if (data.oatC != null)          { destOatEl.value = Math.round(data.oatC); plan.env.destOatC = Math.round(data.oatC); }
+          if (data.altimeterInHg != null) { destAltimeterEl.value = data.altimeterInHg.toFixed(2); plan.env.destAltimeterInHg = data.altimeterInHg; }
+          if (data.windKt != null)        { destWindKtEl.value = Math.round(data.windKt); plan.env.destSurfaceWindKt = Math.round(data.windKt); }
+        }
+
+        savePlan(plan);
+        recalcTOCOrderAndPreview();
+      } catch(e) {
+        console.warn("METAR fetch failed:", e);
+      }
+    }
+
+    depIcaoEl?.addEventListener("blur", () => fetchAndFillMetar(depIcaoEl.value, "dep"));
+    destIcaoEl?.addEventListener("blur", () => fetchAndFillMetar(destIcaoEl.value, "dest"));
+
     // -----------------------------
     // Trip totals (route legs only)
     // -----------------------------
@@ -1968,6 +1999,7 @@
   </script>
 </body>
 </html>
+
 
 
 
