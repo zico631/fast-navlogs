@@ -866,12 +866,15 @@
           if (data.windKt != null)        { surfaceWindKtEl.value = String(Math.round(data.windKt)).padStart(3,"0"); plan.env.surfaceWindKt = Math.round(data.windKt); }
           if (data.windFromDeg != null)   { surfaceWindFromEl.value = String(normalizeDeg(data.windFromDeg)).padStart(3,"0"); plan.env.surfaceWindFromDeg = normalizeDeg(data.windFromDeg); }
           if (data.windKt === 0)          { surfaceWindFromEl.value = "Winds calm"; surfaceWindFromEl.disabled = true; }
+          if (data.fieldElevFt != null)   { fieldElevEl.value = data.fieldElevFt; plan.env.fieldElevFt = data.fieldElevFt; }
         }
 
         if (target === "dest") {
           if (data.oatC != null)          { destOatEl.value = Math.round(data.oatC); plan.env.destOatC = Math.round(data.oatC); }
           if (data.altimeterInHg != null) { destAltimeterEl.value = data.altimeterInHg.toFixed(2); plan.env.destAltimeterInHg = data.altimeterInHg; }
           if (data.windKt != null)        { destWindKtEl.value = Math.round(data.windKt); plan.env.destSurfaceWindKt = Math.round(data.windKt); }
+          if (data.fieldElevFt != null)   { destFieldElevEl.value = data.fieldElevFt; plan.env.destFieldElevFt = data.fieldElevFt; }
+          if (data.tpaFt != null)         { destTpaEl.value = data.tpaFt; plan.env.destTpaFt = data.tpaFt; }
         }
 
         const metarEl = target === "dep" ? document.getElementById("depMetar") : document.getElementById("destMetar");
@@ -1979,6 +1982,7 @@
   </script>
 </body>
 </html>
+
 
 
 
