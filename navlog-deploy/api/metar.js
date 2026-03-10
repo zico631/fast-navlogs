@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     res.status(200).json({
       icao,
       oatC: m.temp ?? null,
-      altimeterInHg: m.altim ?? null,
+      altimeterInHg: m.altim ? Math.round((m.altim * 0.02953) * 100) / 100 : null,
       windFromDeg: m.wdir ?? null,
       windKt: m.wspd ?? null
     });
