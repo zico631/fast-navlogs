@@ -385,15 +385,7 @@ function buildDisplayLegs(plan) {
         return{windFrom:wf,windKt:wk};
       }
 
-      const POPULATE_PAGE2=(()=>{
-        const legs=Array.isArray(plan?.legs)?plan.legs:[];
-        if(legs.length<=6)return false;
-        for(let i=0;i<6;i++){
-          const tc=Number(legs[i]?.tcDeg),d=Number(legs[i]?.distNm);
-          if(!Number.isFinite(tc)||tc<=0||!Number.isFinite(d)||d<=0)return false;
-        }
-        return true;
-      })();
+      const POPULATE_PAGE2 = displayLegs.length + L > 8;
 
       const todHdr=env.tod;
       if(todHdr?.ok&&Number.isFinite(Number(todHdr.todNm))){
@@ -662,6 +654,7 @@ function buildDisplayLegs(plan) {
   </script>
 </body>
 </html>
+
 
 
 
