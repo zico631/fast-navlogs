@@ -406,6 +406,7 @@
       const L = tocAfterFirstFix ? 1 : 0; // legOffset
       const rawLegs = Array.isArray(plan?.legs) ? plan.legs.length : 0;
       const POPULATE_PAGE2 = rawLegs + L >= 7 || displayLegs.length + L >= 8;
+      console.log("DEBUG:", {rawLegs, L, displayLegsLength: displayLegs.length, POPULATE_PAGE2});
 
       const tc1 = tocAfterFirstFix
         ? Number(displayLegs?.[0]?.tcDeg ?? NaN)
@@ -647,6 +648,7 @@
   </script>
 </body>
 </html>
+
 
 
 
