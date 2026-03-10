@@ -369,95 +369,77 @@
           <h3>Airports</h3>
           <p class="hint">Step through left → right. Keep it simple.</p>
         </div>
-
         <div class="splitBox">
-
           <!-- Departure -->
           <div class="panel">
             <div class="panelTitle">
               <h4>Departure</h4>
               <span class="flowTag">Step 1</span>
             </div>
-
             <div class="primaryBox">
               <label for="depIcao">Departure Airport (ICAO)</label>
               <input id="depIcao" type="text" maxlength="4" placeholder="">
             </div>
-
             <div class="row" style="margin-top:12px">
               <div>
                 <label>Field Elevation (ft)</label>
                 <input id="fieldElev" type="number" placeholder="">
               </div>
-
               <div>
                 <label>OAT (°C)</label>
                 <input id="oat" type="number" placeholder="">
               </div>
-
               <div>
                 <label>Altimeter Setting (inHg)</label>
                 <input id="altimeter" type="number" step="0.01" placeholder="">
               </div>
             </div>
-
             <div class="row" style="margin-top:10px">
               <div>
                 <label>Surface Wind Speed (kt)</label>
                 <input id="surfaceWindKt" type="text" inputmode="numeric" maxlength="3" placeholder="">
               </div>
-
               <div>
                 <label>Surface Wind FROM (°)</label>
                 <input id="surfaceWindFrom" class="wide" type="text" inputmode="numeric" maxlength="9" placeholder="">
               </div>
             </div>
-
             <div id="depMetar" class="muted" style="margin-top:10px; font-family: monospace; font-size:12px;"></div>
           </div>
-        </div>
-
           <!-- Destination -->
           <div class="panel">
             <div class="panelTitle">
               <h4>Destination</h4>
               <span class="flowTag">Step 2</span>
             </div>
-
             <div class="primaryBox" style="background:#eef2ff;border-color:#6366f1">
               <label for="destIcao">Destination Airport (ICAO)</label>
-              <input id="destIcao" type="text" maxlength="4" style="width:220px">
+              <input id="destIcao" type="text" maxlength="4">
             </div>
-
             <div class="row" style="margin-top:12px">
               <div>
                 <label>Field Elevation (ft)</label>
                 <input id="destFieldElev" type="number" placeholder="">
               </div>
-
               <div>
                 <label>OAT (°C)</label>
                 <input id="destOat" type="number" placeholder="">
               </div>
-
               <div>
                 <label>Altimeter (inHg)</label>
                 <input id="destAltimeter" type="number" step="0.01" placeholder="">
               </div>
             </div>
-
             <div class="row" style="margin-top:10px">
               <div>
                 <label>Surface Wind Speed (kt)</label>
                 <input id="destWindKt" type="number" placeholder="">
               </div>
-
               <div>
                 <label>Traffic Pattern Altitude (ft)</label>
                 <input id="destTpaFt" type="number" placeholder="">
               </div>
             </div>
-
             <div id="destMetar" class="muted" style="margin-top:10px; font-family: monospace; font-size:12px;"></div>
           </div>
         </div>
@@ -1997,6 +1979,7 @@
   </script>
 </body>
 </html>
+
 
 
 
