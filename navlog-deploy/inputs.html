@@ -1830,7 +1830,9 @@ function setActiveRpmPill(rpm) {
 
       const tasTxt = Number.isFinite(out.ktas) ? `${round(out.ktas, 0)} KTAS` : "—";
       const gphTxt = Number.isFinite(out.gph) ? `${round(out.gph, 1)} GPH` : "—";
-      cruisePerfPillEl.textContent = `Cruise TAS / GPH: ${tasTxt} / ${gphTxt} @ ${rpm} RPM`;
+      const ac2 = aircraftdb[plan.aircraftId ?? "C172S"];
+      const unitLabel = ac2?.cruiseKeyUnit === "%" ? "% power" : "RPM";
+      cruisePerfPillEl.textContent = `Cruise TAS / GPH: ${tasTxt} / ${gphTxt} @ ${rpm} ${unitLabel}`;
       cruisePerfPillEl.className = "pill ok";
 
       savePlan(plan);
