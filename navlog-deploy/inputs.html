@@ -1735,6 +1735,17 @@
       el?.addEventListener("input", () => { recalcTOCOrderAndPreview(); savePlan(plan); });
       el?.addEventListener("change", () => { recalcTOCOrderAndPreview(); savePlan(plan); });
     }
+
+aircraftEl.addEventListener("change", () => {
+  const ac = aircraftdb[aircraftEl.value];
+  if (ac?.cruiseKeyDefault != null) {
+    plan.env.cruiseRpm = ac.cruiseKeyDefault;
+  }
+  savePlan(plan);
+  renderRpmPills();
+  updateCruisePerfUI();
+  recalcTOCOrderAndPreview();
+});
     
 
     // -----------------------------
