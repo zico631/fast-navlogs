@@ -1,7 +1,8 @@
 // aircraftdb.js
-// Cessna 172S / 172SP performance data (POH-based, for training use)
+// Cessna 172S / 172SP + Piper PA-28-161 Warrior II performance data (POH-based, for training use)
 
 export const aircraftdb = {
+
   C172S: {
     id: "C172S",
     name: "Cessna 172S / 172SP",
@@ -26,6 +27,10 @@ export const aircraftdb = {
       { altFt: 11000, kias: 72, timeMin: 24, fuelGal: 4.4, distNm: 32 },
       { altFt: 12000, kias: 72, timeMin: 28, fuelGal: 5.0, distNm: 38 }
     ],
+
+    cruiseKeys: [2100, 2200, 2300, 2400, 2500],
+    cruiseKeyUnit: "RPM",
+    cruiseKeyDefault: 2400,
 
     cruise: {
       2000: {
@@ -76,7 +81,6 @@ export const aircraftdb = {
       }
     },
 
-    // Airspeed calibration (KIAS -> KCAS)
     airspeedCal: {
       UP: [
         { kias: 50, kcas: 56 }, { kias: 60, kcas: 62 }, { kias: 70, kcas: 70 },
@@ -94,7 +98,77 @@ export const aircraftdb = {
         { kias: 70, kcas: 72 }, { kias: 80, kcas: 81 }, { kias: 85, kcas: 86 }
       ]
     }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  PA28_161: {
+    id: "PA28_161",
+    name: "Piper PA-28-161 Warrior II",
+
+    // POH climb: 79 KIAS, 2325 lbs, leaned
+    climbPohFromSeaLevel: [
+      { altFt: 0,     kias: 79, timeMin: 0,  fuelGal: 0.0, distNm: 0  },
+      { altFt: 1000,  kias: 79, timeMin: 2,  fuelGal: 0.5, distNm: 2  },
+      { altFt: 2000,  kias: 79, timeMin: 4,  fuelGal: 1.0, distNm: 4  },
+      { altFt: 3000,  kias: 79, timeMin: 6,  fuelGal: 1.5, distNm: 6  },
+      { altFt: 4000,  kias: 79, timeMin: 8,  fuelGal: 2.0, distNm: 8  },
+      { altFt: 5000,  kias: 79, timeMin: 10, fuelGal: 2.5, distNm: 10 },
+      { altFt: 6000,  kias: 79, timeMin: 13, fuelGal: 3.1, distNm: 13 },
+      { altFt: 7000,  kias: 79, timeMin: 16, fuelGal: 3.8, distNm: 16 },
+      { altFt: 8000,  kias: 79, timeMin: 20, fuelGal: 4.6, distNm: 20 },
+      { altFt: 9000,  kias: 79, timeMin: 24, fuelGal: 5.5, distNm: 24 },
+      { altFt: 10000, kias: 79, timeMin: 29, fuelGal: 6.5, distNm: 29 },
+      { altFt: 11000, kias: 79, timeMin: 35, fuelGal: 7.6, distNm: 35 },
+      { altFt: 12000, kias: 79, timeMin: 42, fuelGal: 8.8, distNm: 42 }
+    ],
+
+    cruiseKeys: [55, 65, 75],
+    cruiseKeyUnit: "%",
+    cruiseKeyDefault: 65,
+
+    // Cruise keyed by % power. Wrapped in m20/std/p20 so lookupcruise()
+    // works without any changes to perfengine.js.
+    // Single-source data so all three temp columns are identical.
+    cruise: {
+      2000: {
+        75: { m20:{ktas:118,gph:10.0}, std:{ktas:118,gph:10.0}, p20:{ktas:118,gph:10.0} },
+        65: { m20:{ktas:110,gph:8.8},  std:{ktas:110,gph:8.8},  p20:{ktas:110,gph:8.8}  },
+        55: { m20:{ktas:102,gph:7.8},  std:{ktas:102,gph:7.8},  p20:{ktas:102,gph:7.8}  }
+      },
+      4000: {
+        75: { m20:{ktas:120,gph:10.0}, std:{ktas:120,gph:10.0}, p20:{ktas:120,gph:10.0} },
+        65: { m20:{ktas:112,gph:8.8},  std:{ktas:112,gph:8.8},  p20:{ktas:112,gph:8.8}  },
+        55: { m20:{ktas:104,gph:7.8},  std:{ktas:104,gph:7.8},  p20:{ktas:104,gph:7.8}  }
+      },
+      6000: {
+        75: { m20:{ktas:122,gph:10.0}, std:{ktas:122,gph:10.0}, p20:{ktas:122,gph:10.0} },
+        65: { m20:{ktas:114,gph:8.8},  std:{ktas:114,gph:8.8},  p20:{ktas:114,gph:8.8}  },
+        55: { m20:{ktas:106,gph:7.8},  std:{ktas:106,gph:7.8},  p20:{ktas:106,gph:7.8}  }
+      },
+      8000: {
+        75: { m20:{ktas:124,gph:10.0}, std:{ktas:124,gph:10.0}, p20:{ktas:124,gph:10.0} },
+        65: { m20:{ktas:116,gph:8.8},  std:{ktas:116,gph:8.8},  p20:{ktas:116,gph:8.8}  },
+        55: { m20:{ktas:108,gph:7.8},  std:{ktas:108,gph:7.8},  p20:{ktas:108,gph:7.8}  }
+      },
+      10000: {
+        75: { m20:{ktas:122,gph:10.0}, std:{ktas:122,gph:10.0}, p20:{ktas:122,gph:10.0} },
+        65: { m20:{ktas:114,gph:8.8},  std:{ktas:114,gph:8.8},  p20:{ktas:114,gph:8.8}  },
+        55: { m20:{ktas:106,gph:7.8},  std:{ktas:106,gph:7.8},  p20:{ktas:106,gph:7.8}  }
+      },
+      12000: {
+        75: { m20:{ktas:119,gph:10.0}, std:{ktas:119,gph:10.0}, p20:{ktas:119,gph:10.0} },
+        65: { m20:{ktas:111,gph:8.8},  std:{ktas:111,gph:8.8},  p20:{ktas:111,gph:8.8}  },
+        55: { m20:{ktas:103,gph:7.8},  std:{ktas:103,gph:7.8},  p20:{ktas:103,gph:7.8}  }
+      }
+    },
+
+    airspeedCal: {
+      UP: [
+        { kias: 60, kcas: 61 }, { kias: 70, kcas: 70 }, { kias: 80,  kcas: 79  },
+        { kias: 90, kcas: 89 }, { kias: 100, kcas: 99 }, { kias: 110, kcas: 109 },
+        { kias: 120, kcas: 119 }
+      ]
+    }
   }
+
 };
-
-
