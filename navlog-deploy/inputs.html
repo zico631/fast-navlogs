@@ -1767,11 +1767,32 @@
       return fieldElevFt + (29.92 - altimeter) * 1000;
     }
 
-    function setActiveRpmPill(rpm) {
-      rpmPillsEl?.querySelectorAll(".pillBtn").forEach(btn => {
-        btn.classList.toggle("active", Number(btn.dataset.rpm) === Number(rpm));
-      });
-    }
+    function renderRpmPills() {
+  const ac = aircraftdb[aircraftEl.value];
+  const keys = ac?.cruiseKeys ?? [2100, 2200, 2300, 2400, 2500];
+  const unit = ac?.cruiseKeyUnit ?? "RPM";
+  const current = Number(plan.env.cruiseRpm);
+
+  rpmPillsEl.innerHTML = "";
+  for (const k of keys) {
+    const btn = document.createElement("button");
+    btn.className = "pillBtn" + (k === current ? " active" : "");
+    btn.dataset.rpm = String(k);
+    btn.type = "button";
+    btn.textContent = unit === "%" ? `${k}%` : String(k);
+    rpmPillsEl.appendChild(btn);
+  }
+
+  // Update the label next to the pills
+  const labelEl = rpmPillsEl.closest(".row")?.querySelector("label");
+  if (labelEl) labelEl.textContent = unit === "%" ? "Cruise Power" : "Cruise RPM";
+}
+
+function setActiveRpmPill(rpm) {
+  rpmPillsEl?.querySelectorAll(".pillBtn").forEach(btn => {
+    btn.classList.toggle("active", Number(btn.dataset.rpm) === Number(rpm));
+  });
+}
 
     function updateCruisePerfUI() {
       if (!cruisePerfPillEl) return;
