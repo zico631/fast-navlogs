@@ -354,12 +354,22 @@
           <option disabled style="color:#94a3b8;">Cirrus SR22 — Coming Soon</option>
         </select>
       </div>
+      <!-- CHANGE 1: Go to Nav Log button moved here, next to Aircraft, styled green -->
+      <div style="display:flex; align-items:flex-end;">
+        <a href="navlog.html?v=2"
+           style="display:inline-block; padding:10px 18px; border-radius:10px;
+                  background:#16a34a; color:white; font-weight:800; font-size:14px;
+                  text-decoration:none; transition:0.2s; white-space:nowrap;
+                  box-shadow:0 2px 8px rgba(22,163,74,0.18);">
+          Go to Nav Log →
+        </a>
+      </div>
     </div>
 
     <div class="right">
       <button id="clearBtn" style="background:#dc2626;">Clear All Fields</button>
       <button id="saveBtn">Save</button>
-      <a href="navlog.html?v=2">Go to Nav Log →</a>
+      <!-- CHANGE 1: plain text link removed from here -->
     </div>
   </div>
 
@@ -465,7 +475,7 @@
           </div>
         </div>
 
-                <div class="helperGrid2">
+        <div class="helperGrid2">
 
           <div class="helperBox">
             <div class="helperBoxHead">
@@ -509,10 +519,8 @@
                 <span id="aloftCruisePill" class="pill ok pillWide">Cruise wind: —</span>
               </div>
 
-
             </div>
 
-           
           </div>
 
           <div class="helperBox">
@@ -570,8 +578,6 @@
                 </select>
               </div>
 
-            
-
               <div class="helperFull" style="display:flex; justify-content:center; margin-top:10px">
                 <span id="tocResultPill" class="pill ok pillWide" style="white-space:normal; text-align:center; width:100%; box-sizing:border-box; word-break:break-word;">TOC: —</span>
               </div>
@@ -617,7 +623,14 @@
       <div class="card" style="margin-top:18px">
         <div class="cardHeader">
           <h3>Route Legs</h3>
-          <p class="hint">Add legs in order. Distances must be entered for TOD placement.</p>
+          <!-- CHANGE 2: hint text replaced with Go to Nav Log button -->
+          <a href="navlog.html?v=2"
+             style="display:inline-block; padding:10px 18px; border-radius:10px;
+                    background:#16a34a; color:white; font-weight:800; font-size:14px;
+                    text-decoration:none; transition:0.2s; white-space:nowrap;
+                    box-shadow:0 2px 8px rgba(22,163,74,0.18);">
+            Go to Nav Log →
+          </a>
         </div>
 
         <div class="row">
@@ -812,7 +825,6 @@
     const firstFixNameEl = document.getElementById("firstFixName");
     const firstFixTcEl = document.getElementById("firstFixTc");
     const firstFixDistEl = document.getElementById("firstFixDist");
-    
 
     const cp1El = document.getElementById("cp1");
     const cp2El = document.getElementById("cp2");
@@ -958,7 +970,7 @@
 
       plan.legs.forEach((leg, i) => {
         const tr = document.createElement("tr");
-                const stationOptions = (plan.env.regionStations || [])
+        const stationOptions = (plan.env.regionStations || [])
           .map(s => `<option value="${s}" ${s === (leg.waStation || plan.env.waStation || "") ? "selected" : ""}>${s}</option>`)
           .join("");
 
@@ -1026,7 +1038,7 @@
           updateTodPreview();
         });
 
-         tr.querySelector(".legStation").addEventListener("change", async (e) => {
+        tr.querySelector(".legStation").addEventListener("change", async (e) => {
           const station = String(e.target.value || "").toUpperCase();
           plan.legs[i].waStation = station;
           savePlan(plan);
@@ -1103,7 +1115,6 @@
         console.warn("Station list load failed:", err);
       }
     }
-
 
     waRegionEl?.addEventListener("change", () => {
       plan.env.waRegion = waRegionEl.value;
@@ -1205,7 +1216,7 @@
       plan.env.windFromDeg = w.dir;
       plan.env.windKt = w.kt;
 
-     const tCruise = tempAtAltFt(plan.env.aloftPts, cruiseAltFt);
+      const tCruise = tempAtAltFt(plan.env.aloftPts, cruiseAltFt);
       if (Number.isFinite(tCruise)) {
         plan.env.tempCruiseC = tCruise;
       } else {
@@ -1619,9 +1630,7 @@
       recalcTOCOrderAndPreview();
     });
 
-
-
-// -----------------------------
+    // -----------------------------
     // TOD preview (full implementation)
     // -----------------------------
     function clearTodEnv() {
@@ -1742,8 +1751,6 @@
       todPreviewPillEl.className = "pill ok";
     }
 
-
-
     // -----------------------------
     // Recalc wiring
     // -----------------------------
@@ -1756,17 +1763,16 @@
       el?.addEventListener("change", () => { recalcTOCOrderAndPreview(); savePlan(plan); });
     }
 
-aircraftEl.addEventListener("change", () => {
-  const ac = aircraftdb[aircraftEl.value];
-  if (ac?.cruiseKeyDefault != null) {
-    plan.env.cruiseRpm = ac.cruiseKeyDefault;
-  }
-  savePlan(plan);
-  renderRpmPills();
-  updateCruisePerfUI();
-  recalcTOCOrderAndPreview();
-});
-    
+    aircraftEl.addEventListener("change", () => {
+      const ac = aircraftdb[aircraftEl.value];
+      if (ac?.cruiseKeyDefault != null) {
+        plan.env.cruiseRpm = ac.cruiseKeyDefault;
+      }
+      savePlan(plan);
+      renderRpmPills();
+      updateCruisePerfUI();
+      recalcTOCOrderAndPreview();
+    });
 
     // -----------------------------
     // Altimeter persistence
@@ -1799,31 +1805,30 @@ aircraftEl.addEventListener("change", () => {
     }
 
     function renderRpmPills() {
-  const ac = aircraftdb[aircraftEl.value];
-  const keys = ac?.cruiseKeys ?? [2100, 2200, 2300, 2400, 2500];
-  const unit = ac?.cruiseKeyUnit ?? "RPM";
-  const current = Number(plan.env.cruiseRpm);
+      const ac = aircraftdb[aircraftEl.value];
+      const keys = ac?.cruiseKeys ?? [2100, 2200, 2300, 2400, 2500];
+      const unit = ac?.cruiseKeyUnit ?? "RPM";
+      const current = Number(plan.env.cruiseRpm);
 
-  rpmPillsEl.innerHTML = "";
-  for (const k of keys) {
-    const btn = document.createElement("button");
-    btn.className = "pillBtn" + (k === current ? " active" : "");
-    btn.dataset.rpm = String(k);
-    btn.type = "button";
-    btn.textContent = unit === "%" ? `${k}%` : String(k);
-    rpmPillsEl.appendChild(btn);
-  }
+      rpmPillsEl.innerHTML = "";
+      for (const k of keys) {
+        const btn = document.createElement("button");
+        btn.className = "pillBtn" + (k === current ? " active" : "");
+        btn.dataset.rpm = String(k);
+        btn.type = "button";
+        btn.textContent = unit === "%" ? `${k}%` : String(k);
+        rpmPillsEl.appendChild(btn);
+      }
 
-  // Update the label next to the pills
-  const labelEl = rpmPillsEl.closest(".row")?.querySelector("label");
-  if (labelEl) labelEl.textContent = unit === "%" ? "Cruise Power" : "Cruise RPM";
-}
+      const labelEl = rpmPillsEl.closest(".row")?.querySelector("label");
+      if (labelEl) labelEl.textContent = unit === "%" ? "Cruise Power" : "Cruise RPM";
+    }
 
-function setActiveRpmPill(rpm) {
-  rpmPillsEl?.querySelectorAll(".pillBtn").forEach(btn => {
-    btn.classList.toggle("active", Number(btn.dataset.rpm) === Number(rpm));
-  });
-}
+    function setActiveRpmPill(rpm) {
+      rpmPillsEl?.querySelectorAll(".pillBtn").forEach(btn => {
+        btn.classList.toggle("active", Number(btn.dataset.rpm) === Number(rpm));
+      });
+    }
 
     function updateCruisePerfUI() {
       if (!cruisePerfPillEl) return;
@@ -1873,8 +1878,6 @@ function setActiveRpmPill(rpm) {
     // -----------------------------
     // Hydrate UI from plan
     // -----------------------------
-
-
     function hydrateInputsFromPlan() {
       aircraftEl.value = plan.aircraftId ?? "C172S";
 
@@ -1882,7 +1885,6 @@ function setActiveRpmPill(rpm) {
       if (destIcaoEl) destIcaoEl.value = (plan.env.destIcao ?? "").toUpperCase();
 
       fieldElevEl.value = (plan.env.fieldElevFt ?? "");
-      // ✅ CHANGE: blank on first visit (no default 15)
       oatEl.value = (plan.env.oatC ?? "");
 
       if (altimeterEl) {
@@ -1890,7 +1892,6 @@ function setActiveRpmPill(rpm) {
         altimeterEl.value = Number.isFinite(a) ? a.toFixed(2) : "";
       }
 
-      // ✅ Hydrate wind speed with 3-digit format if value exists
       const savedKt = plan.env.surfaceWindKt;
       if (savedKt !== "" && savedKt != null && Number.isFinite(Number(savedKt))) {
         surfaceWindKtEl.value = String(Math.round(Number(savedKt))).padStart(3, "0");
@@ -1952,8 +1953,7 @@ function setActiveRpmPill(rpm) {
       alert("Saved!");
     };
 
-    // Time + fuel
-    // populate time dropdown
+    // Time + fuel — populate time dropdown
     (function() {
       for (let h = 0; h < 24; h++) {
         for (let m of [0, 30]) {
@@ -1971,7 +1971,6 @@ function setActiveRpmPill(rpm) {
       plan.env.timeOffLocal = timeOffLocalEl.value;
       savePlan(plan);
     });
-    
 
     fuelStartGalEl?.addEventListener("input", () => {
       const v = Number(fuelStartGalEl.value);
@@ -1989,7 +1988,7 @@ function setActiveRpmPill(rpm) {
     recalcTOCOrderAndPreview();
     updateTodPreview();
 
-        document.getElementById("clearBtn").onclick = () => {
+    document.getElementById("clearBtn").onclick = () => {
       if (!confirm("Clear all fields? This cannot be undone.")) return;
 
       localStorage.removeItem(STORAGE_KEY);
@@ -2033,7 +2032,7 @@ function setActiveRpmPill(rpm) {
     };
   </script>
 
-      <div style="margin-top:40px; padding:20px; border-top:1px solid var(--border); color:#94a3b8; font-size:11px; line-height:1.6;">
+  <div style="margin-top:40px; padding:20px; border-top:1px solid var(--border); color:#94a3b8; font-size:11px; line-height:1.6;">
     <strong style="display:block; margin-bottom:8px; color:#64748b;">Flight Planning Disclaimer</strong>
     This navigation log calculator is provided for educational and flight planning assistance purposes only. The calculations generated by this tool are based on user-supplied inputs and generalized aircraft performance assumptions and may contain errors, omissions, or inaccuracies.
     <br><br>
@@ -2048,47 +2047,3 @@ function setActiveRpmPill(rpm) {
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
