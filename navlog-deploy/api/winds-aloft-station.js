@@ -32,7 +32,7 @@ function decodeWindToken(tok) {
   const tempPart = t.slice(4); // could be "", "-05", "05", etc.
   if (tempPart) {
     // tempPart can include sign
-    const m = tempPart.match(/^(-?\d{2})$/);
+    const m = tempPart.match(/^([+-]?\d{2})$/);
     if (m) tempC = Number(m[1]);
   }
 
