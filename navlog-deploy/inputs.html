@@ -1161,7 +1161,7 @@
 
     function tempAtAltFt(pts, altFt) {
       const tpts = (pts || [])
-        .filter(p => Number.isFinite(Number(p.altFt)) && Number.isFinite(Number(p.tempC)))
+        .filter(p => Number.isFinite(Number(p.altFt)) && p.tempC != null && Number.isFinite(Number(p.tempC)))
         .map(p => ({ altFt: Number(p.altFt), tempC: Number(p.tempC) }))
         .sort((a,b)=>a.altFt-b.altFt);
 
