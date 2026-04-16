@@ -26,9 +26,9 @@
     }
     @media print {
       .bar { display:none; } body { margin:0; }
-      .page { border:none; page-break-after:always; }
+      .page { border:none; page-break-after:always; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
       #pages { gap:0; }
-      .mappedBox { outline:none; background:transparent; color:transparent; text-shadow:none; }
+      .mappedBox { outline:none; background:transparent; color:black; text-shadow:none; }
     }
   </style>
 </head>
