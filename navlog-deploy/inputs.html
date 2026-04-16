@@ -1167,6 +1167,7 @@
 
       if (tpts.length === 0) return NaN;
       if (tpts.length === 1) return tpts[0].tempC;
+      if (altFt < tpts[0].altFt) return NaN;
 
       const a = Math.max(tpts[0].altFt, Math.min(tpts[tpts.length-1].altFt, altFt));
       let i = 0;
