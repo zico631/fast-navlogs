@@ -5,14 +5,18 @@ export default async function handler(req, res) {
 
     // Winds Aloft product (text) — correct upstream is windtemp
     const upstream =
-      `https://aviationweather.gov/api/data/windtemp?region=${encodeURIComponent(region)}&level=${encodeURIComponent(level)}&fcst=06&layout=off`;
+      `https://aviationweather.gov/api/data/windtemp?region=${encodeURIComponent(region)}&level=${encodeURIComponent(level)}&fcst=06`;
 
     const r = await fetch(upstream, {
-      headers: { "Accept": "text/plain,*/*" },
+      headers: {
+        "Accept": "text/plain,*/*",
+        "User-Agent": "FASTNavlog/1.0 (fastnavlog.com)"
+      },
     });
 
     if (!r.ok) {
-      res.status(r.status).json({ error: `Upstream HTTP ${r.status}` });
+      const body = await r.text();
+      res.status(r.status).json({ error: `Upstream HTTP ${r.status}`, detail: body.slice(0, 300) });
       return;
     }
 
